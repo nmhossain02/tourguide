@@ -12,10 +12,10 @@ Codex skill / any MCP client
   versioned tour snapshot   committed HEAD + live dirty notice
            │
            ▼
- loopback Fastify service ─── capability-gated recipe runner
+ loopback Fastify service ─── declared-capability review
            │                            │
            ▼                            ▼
- React lesson player             disposable worktree
+ React lesson player         disposable worktree + temp HOME
 ```
 
 The canonical snapshot is anchored to one commit. A later HEAD is compared by changed evidence paths; staleness propagates to dependent lessons. Uncommitted files remain visible as a separate local view and never silently rewrite canonical explanations.

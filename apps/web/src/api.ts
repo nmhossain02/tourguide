@@ -8,7 +8,12 @@ export interface ProjectPayload {
 }
 
 const queryToken = new URLSearchParams(window.location.search).get("token");
-if (queryToken) sessionStorage.setItem("tourguide-token", queryToken);
+if (queryToken) {
+  sessionStorage.setItem("tourguide-token", queryToken);
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete("token");
+  history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+}
 const sessionToken = queryToken ?? sessionStorage.getItem("tourguide-token") ?? "";
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -24,7 +29,7 @@ export const api = {
   project: () => json<ProjectPayload>("/api/project"),
   tour: () => json<TourSnapshot>("/api/tour"),
   source: (path: string, view: "head" | "working" = "head") => json<{ path: string; content: string; dirty: boolean; view: string }>(`/api/source?path=${encodeURIComponent(path)}&view=${view}`),
-  run: (recipeId: string, trusted = false, inputs: Record<string, string> = {}) => json<{ exitCode: number | null; stdout: string; stderr: string; durationMs: number; timedOut: boolean; isolated: boolean; patch?: string }>("/api/run", {
+  run: (recipeId: string, trusted = false, inputs: Record<string, string> = {}) => json<{ exitCode: number | null; stdout: string; stderr: string; durationMs: number; timedOut: boolean; isolated: boolean; patch?: string; changedFiles: string[]; undeclaredWrites: string[] }>("/api/run", {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ recipeId, trusted, inputs }),
   }),
   preferences: (value: Preferences) => json<Preferences>("/api/preferences", {

@@ -16,6 +16,8 @@ export interface RunResult {
   timedOut: boolean;
   isolated: boolean;
   patch?: string;
+  changedFiles: string[];
+  undeclaredWrites: string[];
 }
 
 const execFileAsync = promisify(execFile);
@@ -27,7 +29,7 @@ function contained(root: string, requested: string): string {
   return target;
 }
 
-async function execute(root: string, recipe: RunRecipe): Promise<Omit<RunResult, "isolated" | "patch">> {
+async function execute(root: string, recipe: RunRecipe, home: string): Promise<Omit<RunResult, "isolated" | "patch" | "changedFiles" | "undeclaredWrites">> {
   const cwd = contained(root, recipe.cwd);
   const startedAt = Date.now();
   return new Promise((resolveResult, reject) => {
@@ -35,7 +37,7 @@ async function execute(root: string, recipe: RunRecipe): Promise<Omit<RunResult,
       cwd,
       shell: false,
       detached: process.platform !== "win32",
-      env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...recipe.env },
+      env: { PATH: process.env.PATH ?? "", HOME: home, ...recipe.env },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -80,18 +82,35 @@ export async function runRecipe(root: string, input: RunRecipe, trusted = false,
     throw new Error("This recipe requires explicit trusted-mode approval for external access.");
   }
 
-  if (recipe.capabilities.writes.length === 0) return { ...await execute(root, recipe), isolated: false };
-
   const workspace = join(root, ".tourguide", "workspaces", randomUUID());
+  const isolatedHome = join(workspace, ".tourguide-home");
   await mkdir(join(root, ".tourguide", "workspaces"), { recursive: true });
   await execFileAsync("git", ["-C", root, "worktree", "add", "--detach", workspace, "HEAD"]);
   try {
-    const result = await execute(workspace, recipe);
-    const { stdout: patch } = await execFileAsync("git", ["-C", workspace, "diff", "--binary"], {
+    await mkdir(isolatedHome, { recursive: true });
+    const result = await execute(workspace, recipe, isolatedHome);
+    const { stdout: trackedPatch } = await execFileAsync("git", ["-C", workspace, "diff", "--binary"], {
       encoding: "utf8",
       maxBuffer: 8 * 1024 * 1024,
     });
-    return { ...result, isolated: true, ...(patch ? { patch } : {}) };
+    const { stdout: changedOutput } = await execFileAsync("git", ["-C", workspace, "status", "--porcelain=v1", "-z"], { encoding: "utf8" });
+    const changedFiles = changedOutput.split("\0").filter(Boolean).map((entry) => entry.slice(3));
+    const { stdout: untrackedOutput } = await execFileAsync("git", ["-C", workspace, "ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" });
+    const untracked = untrackedOutput.split("\0").filter(Boolean).filter((path) => !path.startsWith(".tourguide-home/"));
+    const patches = [trackedPatch];
+    for (const path of untracked) {
+      try {
+        await execFileAsync("git", ["-C", workspace, "diff", "--no-index", "--binary", "--", "/dev/null", path], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
+      } catch (error) {
+        const output = (error as { stdout?: string }).stdout;
+        if (output) patches.push(output);
+      }
+    }
+    const declared = (path: string) => recipe.capabilities.writes.some((pattern) => pattern === path || (pattern.endsWith("/**") && path.startsWith(pattern.slice(0, -3))));
+    const visibleChanges = [...new Set([...changedFiles.filter((path) => !path.startsWith(".tourguide-home/")), ...untracked])];
+    const undeclaredWrites = visibleChanges.filter((path) => !declared(path));
+    const patch = patches.join("");
+    return { ...result, isolated: true, changedFiles: visibleChanges, undeclaredWrites, ...(patch ? { patch } : {}) };
   } finally {
     await execFileAsync("git", ["-C", root, "worktree", "remove", "--force", workspace]).catch(() => undefined);
     await rm(workspace, { recursive: true, force: true });

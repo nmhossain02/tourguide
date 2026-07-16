@@ -37,6 +37,10 @@ export async function readHeadFile(root: string, path: string): Promise<string> 
   return git(root, ["show", `HEAD:${path}`]);
 }
 
+export async function readRevisionFile(root: string, revision: string, path: string): Promise<string> {
+  return git(root, ["show", `${revision}:${path}`]);
+}
+
 export async function readWorkingFile(root: string, path: string): Promise<string> {
   return readFile(resolve(root, path), "utf8");
 }
@@ -78,6 +82,9 @@ async function rootCommands(root: string, files: string[]): Promise<Record<strin
 
 export async function inspectRepository(start = process.cwd()): Promise<ProjectInventory> {
   const root = await findRepositoryRoot(start);
+  await git(root, ["rev-parse", "--verify", "HEAD"]).catch(() => {
+    throw new Error(`Tourguide requires at least one commit in ${root}. Commit the repository's initial state and try again.`);
+  });
   const [head, branch, fileOutput, statusOutput] = await Promise.all([
     git(root, ["rev-parse", "HEAD"]),
     git(root, ["branch", "--show-current"]),

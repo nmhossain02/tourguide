@@ -1,4 +1,6 @@
 import { access } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 import { TourStore, findRepositoryRoot, inspectRepository } from "@tourguide/core";
 import open from "open";
@@ -6,12 +8,20 @@ import open from "open";
 import { startMcpServer } from "./mcp.js";
 import { startWebServer } from "./web-server.js";
 
+const execFileAsync = promisify(execFile);
+const usage = "Usage: tourguide <open|serve|status|doctor|clean|mcp> [repository]";
+
 async function main(): Promise<void> {
-  const [command = "open", path = process.cwd()] = process.argv.slice(2);
-  if (command === "mcp") {
-    await startMcpServer(path);
+  const [command = "open", suppliedPath] = process.argv.slice(2);
+  if (command === "help" || command === "--help" || command === "-h") {
+    console.log(usage);
     return;
   }
+  if (command === "mcp") {
+    await startMcpServer(suppliedPath);
+    return;
+  }
+  const path = suppliedPath ?? process.cwd();
 
   let root: string;
   try {
@@ -24,7 +34,6 @@ async function main(): Promise<void> {
 
   if (command === "status") {
     const store = new TourStore(root);
-    await store.initialize();
     console.log(JSON.stringify({ inventory: await inspectRepository(root), tour: await store.current(), preferences: await store.preferences() }, null, 2));
     return;
   }
@@ -32,7 +41,7 @@ async function main(): Promise<void> {
     const checks = await Promise.all([
       access(root).then(() => ({ name: "repository", ok: true })).catch(() => ({ name: "repository", ok: false })),
       Promise.resolve({ name: "node", ok: Number(process.versions.node.split(".")[0]) >= 22, detail: process.version }),
-      inspectRepository(root).then((inventory) => ({ name: "git", ok: true, detail: inventory.head.slice(0, 8) })).catch((error) => ({ name: "git", ok: false, detail: String(error) })),
+      Promise.all([inspectRepository(root), execFileAsync("git", ["--version"], { encoding: "utf8" })]).then(([inventory, version]) => ({ name: "git", ok: true, detail: `${version.stdout.trim()}; HEAD ${inventory.head.slice(0, 8)}` })).catch((error) => ({ name: "git", ok: false, detail: String(error) })),
     ]);
     console.log(JSON.stringify(checks, null, 2));
     if (checks.some((check) => !check.ok)) process.exitCode = 1;
@@ -45,7 +54,7 @@ async function main(): Promise<void> {
     return;
   }
   if (command !== "open" && command !== "serve") {
-    console.error("Usage: tourguide <open|serve|status|doctor|clean|mcp> [repository]");
+    console.error(usage);
     process.exitCode = 1;
     return;
   }
@@ -59,6 +68,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.stack : error);
+  console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

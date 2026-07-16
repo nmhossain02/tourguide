@@ -41588,6 +41588,8 @@ ${body}`);
 
 // src/cli.ts
 import { access } from "fs/promises";
+import { execFile as execFile9 } from "child_process";
+import { promisify as promisify9 } from "util";
 
 // ../../node_modules/.pnpm/zod@4.4.3/node_modules/zod/v4/classic/external.js
 var external_exports = {};
@@ -56316,6 +56318,9 @@ async function findRepositoryRoot(start = process.cwd()) {
 async function readHeadFile(root, path2) {
   return git(root, ["show", `HEAD:${path2}`]);
 }
+async function readRevisionFile(root, revision, path2) {
+  return git(root, ["show", `${revision}:${path2}`]);
+}
 async function readWorkingFile(root, path2) {
   return readFile(resolve(root, path2), "utf8");
 }
@@ -56352,6 +56357,9 @@ async function rootCommands(root, files) {
 }
 async function inspectRepository(start = process.cwd()) {
   const root = await findRepositoryRoot(start);
+  await git(root, ["rev-parse", "--verify", "HEAD"]).catch(() => {
+    throw new Error(`Tourguide requires at least one commit in ${root}. Commit the repository's initial state and try again.`);
+  });
   const [head, branch, fileOutput, statusOutput] = await Promise.all([
     git(root, ["rev-parse", "HEAD"]),
     git(root, ["branch", "--show-current"]),
@@ -56378,11 +56386,16 @@ async function inspectRepository(start = process.cwd()) {
 
 // ../core/src/freshness.ts
 async function assessFreshness(root, snapshot, currentHead) {
-  const changedFiles = snapshot.head === currentHead ? [] : await changedFilesBetween(root, snapshot.head, currentHead).catch(() => []);
+  let historyAvailable = true;
+  const changedFiles = snapshot.head === currentHead ? [] : await changedFilesBetween(root, snapshot.head, currentHead).catch(() => {
+    historyAvailable = false;
+    return [];
+  });
   const changed = new Set(changedFiles);
   const stale = new Set(
     snapshot.lessons.filter((lesson) => lesson.evidence.some((evidence) => evidence.path && changed.has(evidence.path))).map((lesson) => lesson.id)
   );
+  if (!historyAvailable) for (const lesson of snapshot.lessons) stale.add(lesson.id);
   let added = true;
   while (added) {
     added = false;
@@ -56399,7 +56412,9 @@ async function assessFreshness(root, snapshot, currentHead) {
     authoredHead: snapshot.head,
     changedFiles,
     staleLessonIds: [...stale],
-    fresh: snapshot.head === currentHead
+    fresh: snapshot.head === currentHead,
+    historyAvailable,
+    ...!historyAvailable ? { reason: "The authored commit is unavailable or cannot be compared; review every lesson." } : {}
   };
 }
 
@@ -56501,7 +56516,7 @@ function contained(root, requested) {
   if (rel.startsWith("..") || isAbsolute(rel)) throw new Error("Recipe working directory escapes the repository root.");
   return target;
 }
-async function execute(root, recipe) {
+async function execute(root, recipe, home) {
   const cwd = contained(root, recipe.cwd);
   const startedAt = Date.now();
   return new Promise((resolveResult, reject) => {
@@ -56509,7 +56524,7 @@ async function execute(root, recipe) {
       cwd,
       shell: false,
       detached: process.platform !== "win32",
-      env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...recipe.env },
+      env: { PATH: process.env.PATH ?? "", HOME: home, ...recipe.env },
       stdio: ["ignore", "pipe", "pipe"]
     });
     let stdout = "";
@@ -56559,17 +56574,35 @@ async function runRecipe(root, input, trusted = false, values = {}) {
   if (!trusted && (recipe.capabilities.network === "external" || recipe.capabilities.externalSystems.length > 0)) {
     throw new Error("This recipe requires explicit trusted-mode approval for external access.");
   }
-  if (recipe.capabilities.writes.length === 0) return { ...await execute(root, recipe), isolated: false };
   const workspace = join2(root, ".tourguide", "workspaces", randomUUID2());
+  const isolatedHome = join2(workspace, ".tourguide-home");
   await mkdir2(join2(root, ".tourguide", "workspaces"), { recursive: true });
   await execFileAsync2("git", ["-C", root, "worktree", "add", "--detach", workspace, "HEAD"]);
   try {
-    const result2 = await execute(workspace, recipe);
-    const { stdout: patch } = await execFileAsync2("git", ["-C", workspace, "diff", "--binary"], {
+    await mkdir2(isolatedHome, { recursive: true });
+    const result2 = await execute(workspace, recipe, isolatedHome);
+    const { stdout: trackedPatch } = await execFileAsync2("git", ["-C", workspace, "diff", "--binary"], {
       encoding: "utf8",
       maxBuffer: 8 * 1024 * 1024
     });
-    return { ...result2, isolated: true, ...patch ? { patch } : {} };
+    const { stdout: changedOutput } = await execFileAsync2("git", ["-C", workspace, "status", "--porcelain=v1", "-z"], { encoding: "utf8" });
+    const changedFiles = changedOutput.split("\0").filter(Boolean).map((entry) => entry.slice(3));
+    const { stdout: untrackedOutput } = await execFileAsync2("git", ["-C", workspace, "ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" });
+    const untracked = untrackedOutput.split("\0").filter(Boolean).filter((path2) => !path2.startsWith(".tourguide-home/"));
+    const patches = [trackedPatch];
+    for (const path2 of untracked) {
+      try {
+        await execFileAsync2("git", ["-C", workspace, "diff", "--no-index", "--binary", "--", "/dev/null", path2], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
+      } catch (error51) {
+        const output = error51.stdout;
+        if (output) patches.push(output);
+      }
+    }
+    const declared = (path2) => recipe.capabilities.writes.some((pattern) => pattern === path2 || pattern.endsWith("/**") && path2.startsWith(pattern.slice(0, -3)));
+    const visibleChanges = [.../* @__PURE__ */ new Set([...changedFiles.filter((path2) => !path2.startsWith(".tourguide-home/")), ...untracked])];
+    const undeclaredWrites = visibleChanges.filter((path2) => !declared(path2));
+    const patch = patches.join("");
+    return { ...result2, isolated: true, changedFiles: visibleChanges, undeclaredWrites, ...patch ? { patch } : {} };
   } finally {
     await execFileAsync2("git", ["-C", root, "worktree", "remove", "--force", workspace]).catch(() => void 0);
     await rm2(workspace, { recursive: true, force: true });
@@ -67017,46 +67050,108 @@ function result(value) {
     structuredContent: value
   };
 }
-function validationErrors(draft) {
+async function validationErrors(draft, root) {
   const ids = new Set(draft.lessons.map((lesson) => lesson.id));
   const errors = [];
+  if (draft.tracks.length === 0) errors.push("Snapshot has no tracks.");
+  if (draft.lessons.length === 0) errors.push("Snapshot has no lessons.");
+  if (ids.size !== draft.lessons.length) errors.push("Lesson IDs must be unique.");
+  if (new Set(draft.tracks.map((track) => track.id)).size !== draft.tracks.length) errors.push("Track IDs must be unique.");
+  if (new Set(draft.tracks.map((track) => track.priority)).size !== draft.tracks.length) errors.push("Track priorities must be unique.");
+  if (draft.tracks[0]?.kind !== "core" || draft.tracks[0]?.priority !== 0) errors.push("The first track must be the core track at priority 0.");
+  if (draft.tracks.some((track, index) => index > 0 && track.priority <= draft.tracks[index - 1].priority)) errors.push("Tracks must be ordered by ascending priority.");
+  const assignments = /* @__PURE__ */ new Map();
   for (const track of draft.tracks) {
-    for (const id of track.lessonIds) if (!ids.has(id)) errors.push(`Track ${track.id} references missing lesson ${id}.`);
+    for (const id of track.lessonIds) {
+      if (!ids.has(id)) errors.push(`Track ${track.id} references missing lesson ${id}.`);
+      assignments.set(id, (assignments.get(id) ?? 0) + 1);
+    }
   }
   for (const lesson of draft.lessons) {
+    if (lesson.status !== "ready") errors.push(`Lesson ${lesson.id} must be ready before publication.`);
+    if (assignments.get(lesson.id) !== 1) errors.push(`Lesson ${lesson.id} must belong to exactly one track.`);
     if (lesson.narrative.split(/\s+/).length > 350) errors.push(`Lesson ${lesson.id} exceeds 350 narrative words.`);
+    for (const prerequisite of lesson.prerequisites) {
+      if (!ids.has(prerequisite)) errors.push(`Lesson ${lesson.id} has missing prerequisite ${prerequisite}.`);
+      if (prerequisite === lesson.id) errors.push(`Lesson ${lesson.id} cannot depend on itself.`);
+    }
     if (lesson.status === "ready" && lesson.evidence.some((evidence) => !evidence.validated && evidence.kind !== "inference")) {
       errors.push(`Ready lesson ${lesson.id} contains unvalidated evidence.`);
     }
+    for (const interaction of lesson.interactions) {
+      if (interaction.type === "command" && !interaction.recipe.expected) errors.push(`Command recipe ${interaction.recipe.id} needs an expected observation.`);
+      if (interaction.type === "source" && interaction.editable) errors.push(`Source interaction in ${lesson.id} cannot be editable; use typed command inputs for experiments.`);
+    }
+    for (const evidence of lesson.evidence.filter((item) => item.path)) {
+      if (evidence.revision !== draft.head) errors.push(`Evidence ${evidence.id} must anchor to snapshot HEAD ${draft.head}.`);
+      if (!evidence.contentHash) {
+        errors.push(`Evidence ${evidence.id} needs a content hash from read_evidence.`);
+        continue;
+      }
+      try {
+        const content = await readRevisionFile(root, draft.head, evidence.path);
+        if (contentHash(content) !== evidence.contentHash) errors.push(`Evidence ${evidence.id} content hash does not match ${evidence.path}.`);
+      } catch {
+        errors.push(`Evidence ${evidence.id} cannot read tracked path ${evidence.path} at snapshot HEAD.`);
+      }
+    }
   }
+  const visiting = /* @__PURE__ */ new Set();
+  const visited = /* @__PURE__ */ new Set();
+  const cycle = (id) => {
+    if (visiting.has(id)) return true;
+    if (visited.has(id)) return false;
+    visiting.add(id);
+    const found = (draft.dependencies[id] ?? []).some(cycle);
+    visiting.delete(id);
+    visited.add(id);
+    return found;
+  };
+  if (draft.lessons.some((lesson) => cycle(lesson.id))) errors.push("Lesson prerequisites must not contain a cycle.");
   return errors;
 }
-async function startMcpServer(start = process.cwd()) {
-  const root = await findRepositoryRoot(start);
-  const store = new TourStore(root);
-  await store.initialize();
+async function startMcpServer(start) {
+  let root;
+  let store;
+  const context = async (path2) => {
+    if (path2) {
+      root = await findRepositoryRoot(path2);
+      store = new TourStore(root);
+      await store.initialize();
+    }
+    if (!root || !store) throw new Error("Call inspect_project with the target repository's absolute path first.");
+    return { root, store };
+  };
+  if (start) await context(start);
   let web;
   const server = new McpServer({ name: "tourguide", version: "0.1.0" });
-  server.tool("inspect_project", "Inspect the current Git repository using a bounded deterministic shallow scan.", {}, async () => result(await inspectRepository(root)));
+  server.tool("inspect_project", "Select and inspect a Git repository using a bounded deterministic shallow scan.", {
+    path: external_exports.string().describe("Absolute path within the target Git repository.")
+  }, async ({ path: path2 }) => {
+    const selected = await context(path2);
+    return result(await inspectRepository(selected.root));
+  });
   server.tool("collect_priorities", "Read or save ordered learning priorities and multiple learner goals.", {
     priorities: external_exports.array(external_exports.string()).optional(),
     goals: external_exports.array(external_exports.string()).optional(),
     allowCodexAdapter: external_exports.boolean().optional()
   }, async (input) => {
-    const current = await store.preferences();
+    const selected = await context();
+    const current = await selected.store.preferences();
     const next = PreferencesSchema.parse({ ...current, ...input });
-    await store.savePreferences(next);
+    await selected.store.savePreferences(next);
     return result(next);
   });
   server.tool("begin_snapshot", "Begin a versioned Tourguide draft anchored to committed HEAD.", {
     projectName: external_exports.string().optional()
   }, async ({ projectName }) => {
-    const inventory = await inspectRepository(root);
+    const selected = await context();
+    const inventory = await inspectRepository(selected.root);
     const snapshot = TourSnapshotSchema.parse({
       schemaVersion: 1,
       id: randomUUID4(),
       projectName: projectName ?? inventory.name,
-      repositoryRoot: root,
+      repositoryRoot: selected.root,
       head: inventory.head,
       branch: inventory.branch,
       generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -67066,71 +67161,132 @@ async function startMcpServer(start = process.cwd()) {
       lessons: [],
       dependencies: {}
     });
-    await store.saveDraft(snapshot);
+    await selected.store.saveDraft(snapshot);
     return result(snapshot);
+  });
+  server.tool("begin_refresh", "Clone the published tour onto current HEAD, re-anchor unchanged evidence, and mark only affected lessons stale.", {}, async () => {
+    const selected = await context();
+    const current = await selected.store.current();
+    if (!current) throw new Error("No published snapshot exists. Use begin_snapshot instead.");
+    const inventory = await inspectRepository(selected.root);
+    const freshness = await assessFreshness(selected.root, current, inventory.head);
+    const stale = new Set(freshness.staleLessonIds);
+    const snapshot = TourSnapshotSchema.parse({
+      ...current,
+      id: randomUUID4(),
+      head: inventory.head,
+      branch: inventory.branch,
+      generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      status: "draft",
+      lessons: current.lessons.map((lesson) => stale.has(lesson.id) ? { ...lesson, status: "stale" } : { ...lesson, evidence: lesson.evidence.map((evidence) => evidence.path ? { ...evidence, revision: inventory.head } : evidence) })
+    });
+    await selected.store.saveDraft(snapshot);
+    return result({ snapshotId: snapshot.id, freshness, snapshot });
   });
   server.tool("write_outline", "Replace the track outline of a Tourguide draft.", {
     snapshotId: external_exports.string(),
     tracks: external_exports.array(TrackSchema)
   }, async ({ snapshotId, tracks }) => {
-    const draft = await store.loadDraft(snapshotId);
+    const selected = await context();
+    const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
     const next = TourSnapshotSchema.parse({ ...draft, tracks });
-    await store.saveDraft(next);
+    await selected.store.saveDraft(next);
     return result({ snapshotId, trackCount: tracks.length });
   });
   server.tool("write_lessons", "Add or replace validated lessons in a Tourguide draft.", {
     snapshotId: external_exports.string(),
     lessons: external_exports.array(LessonSchema)
   }, async ({ snapshotId, lessons }) => {
-    const draft = await store.loadDraft(snapshotId);
+    const selected = await context();
+    const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
     const replacements = new Map(lessons.map((lesson) => [lesson.id, lesson]));
     const merged = [...draft.lessons.filter((lesson) => !replacements.has(lesson.id)), ...lessons];
-    const next = TourSnapshotSchema.parse({ ...draft, lessons: merged });
-    await store.saveDraft(next);
+    const dependencies = Object.fromEntries(merged.map((lesson) => [lesson.id, lesson.prerequisites]));
+    const next = TourSnapshotSchema.parse({ ...draft, lessons: merged, dependencies });
+    await selected.store.saveDraft(next);
     return result({ snapshotId, written: lessons.map((lesson) => lesson.id), total: merged.length });
   });
   server.tool("validate_snapshot", "Validate lesson references, ordering, and publication readiness.", {
     snapshotId: external_exports.string()
   }, async ({ snapshotId }) => {
-    const draft = await store.loadDraft(snapshotId);
+    const selected = await context();
+    const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const errors = validationErrors(draft);
+    const errors = await validationErrors(draft, selected.root);
     return result({ valid: errors.length === 0, errors, lessonCount: draft.lessons.length });
   });
   server.tool("publish_snapshot", "Publish a valid draft for progressive use in the browser.", {
     snapshotId: external_exports.string()
   }, async ({ snapshotId }) => {
-    const draft = await store.loadDraft(snapshotId);
+    const selected = await context();
+    const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const errors = validationErrors(draft);
+    const errors = await validationErrors(draft, selected.root);
     if (errors.length > 0) throw new Error(`Snapshot is not publishable:
 ${errors.join("\n")}`);
-    await store.publish(draft);
+    await selected.store.publish(draft);
     return result({ published: true, snapshotId });
   });
   server.tool("probe_recipe", "Run an argv-based lesson recipe through Tourguide's local permission boundary.", {
     recipe: external_exports.any(),
     trusted: external_exports.boolean().default(false),
     inputs: external_exports.record(external_exports.string(), external_exports.string()).default({})
-  }, async ({ recipe, trusted, inputs }) => result(await runRecipe(root, recipe, trusted, inputs)));
+  }, async ({ recipe, trusted, inputs }) => {
+    const selected = await context();
+    return result(await runRecipe(selected.root, recipe, trusted, inputs));
+  });
+  server.tool("read_evidence", "Read a bounded source excerpt from a specific committed revision and compute its content hash.", {
+    path: external_exports.string(),
+    revision: external_exports.string().optional(),
+    lineStart: external_exports.number().int().positive().default(1),
+    lineEnd: external_exports.number().int().positive().optional()
+  }, async ({ path: path2, revision, lineStart, lineEnd }) => {
+    const selected = await context();
+    const inventory = await inspectRepository(selected.root);
+    if (!inventory.trackedFiles.includes(path2)) throw new Error(`Not a tracked path: ${path2}`);
+    const anchoredRevision = revision ?? inventory.head;
+    const content = await readRevisionFile(selected.root, anchoredRevision, path2);
+    const lines = content.split("\n");
+    const end = Math.min(lineEnd ?? lineStart + 79, lineStart + 199, lines.length);
+    if (end < lineStart) throw new Error("lineEnd must be greater than or equal to lineStart.");
+    return result({ path: path2, revision: anchoredRevision, lineStart, lineEnd: end, contentHash: contentHash(content), validated: true, content: lines.slice(lineStart - 1, end).join("\n") });
+  });
+  server.tool("assess_freshness", "Compare the published snapshot with current committed HEAD and propagate stale lesson dependencies.", {}, async () => {
+    const selected = await context();
+    const snapshot = await selected.store.current();
+    if (!snapshot) return result({ fresh: false, reason: "No published snapshot" });
+    const inventory = await inspectRepository(selected.root);
+    return result(await assessFreshness(selected.root, snapshot, inventory.head));
+  });
   server.tool("launch_app", "Launch the local Tourguide browser application.", {}, async () => {
-    web ??= await startWebServer(root);
+    const selected = await context();
+    web ??= await startWebServer(selected.root);
     await open_default(web.url);
     return result({ url: web.url });
   });
-  server.tool("get_active_lesson_context", "Return the published tour for contextual learner questions.", {}, async () => result({ tour: await store.current(), preferences: await store.preferences() }));
+  server.tool("get_active_lesson_context", "Return the published tour for contextual learner questions.", {}, async () => {
+    const selected = await context();
+    return result({ tour: await selected.store.current(), preferences: await selected.store.preferences() });
+  });
   await server.connect(new StdioServerTransport());
 }
 
 // src/cli.ts
+var execFileAsync7 = promisify9(execFile9);
+var usage = "Usage: tourguide <open|serve|status|doctor|clean|mcp> [repository]";
 async function main() {
-  const [command = "open", path2 = process.cwd()] = process.argv.slice(2);
-  if (command === "mcp") {
-    await startMcpServer(path2);
+  const [command = "open", suppliedPath] = process.argv.slice(2);
+  if (command === "help" || command === "--help" || command === "-h") {
+    console.log(usage);
     return;
   }
+  if (command === "mcp") {
+    await startMcpServer(suppliedPath);
+    return;
+  }
+  const path2 = suppliedPath ?? process.cwd();
   let root;
   try {
     root = await findRepositoryRoot(path2);
@@ -67141,7 +67297,6 @@ async function main() {
   }
   if (command === "status") {
     const store = new TourStore(root);
-    await store.initialize();
     console.log(JSON.stringify({ inventory: await inspectRepository(root), tour: await store.current(), preferences: await store.preferences() }, null, 2));
     return;
   }
@@ -67149,7 +67304,7 @@ async function main() {
     const checks = await Promise.all([
       access(root).then(() => ({ name: "repository", ok: true })).catch(() => ({ name: "repository", ok: false })),
       Promise.resolve({ name: "node", ok: Number(process.versions.node.split(".")[0]) >= 22, detail: process.version }),
-      inspectRepository(root).then((inventory) => ({ name: "git", ok: true, detail: inventory.head.slice(0, 8) })).catch((error51) => ({ name: "git", ok: false, detail: String(error51) }))
+      Promise.all([inspectRepository(root), execFileAsync7("git", ["--version"], { encoding: "utf8" })]).then(([inventory, version2]) => ({ name: "git", ok: true, detail: `${version2.stdout.trim()}; HEAD ${inventory.head.slice(0, 8)}` })).catch((error51) => ({ name: "git", ok: false, detail: String(error51) }))
     ]);
     console.log(JSON.stringify(checks, null, 2));
     if (checks.some((check2) => !check2.ok)) process.exitCode = 1;
@@ -67162,7 +67317,7 @@ async function main() {
     return;
   }
   if (command !== "open" && command !== "serve") {
-    console.error("Usage: tourguide <open|serve|status|doctor|clean|mcp> [repository]");
+    console.error(usage);
     process.exitCode = 1;
     return;
   }
@@ -67177,7 +67332,7 @@ async function main() {
   process.on("SIGTERM", close);
 }
 main().catch((error51) => {
-  console.error(error51 instanceof Error ? error51.stack : error51);
+  console.error(error51 instanceof Error ? error51.message : error51);
   process.exitCode = 1;
 });
 /*! Bundled license information:

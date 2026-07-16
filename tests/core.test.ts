@@ -81,6 +81,16 @@ describe("freshness", () => {
     expect(report.staleLessonIds).toContain(snapshot.lessons[0]!.id);
     expect(report.staleLessonIds).toContain(snapshot.lessons[1]!.id);
   });
+
+  it("invalidates every lesson when authored history is unavailable", async () => {
+    const root = await repository();
+    const snapshot = await buildStarterTour(await inspectRepository(root));
+    snapshot.head = "0000000000000000000000000000000000000000";
+    const report = await assessFreshness(root, snapshot, (await inspectRepository(root)).head);
+    expect(report.historyAvailable).toBe(false);
+    expect(report.staleLessonIds).toHaveLength(snapshot.lessons.length);
+    expect(report.reason).toContain("review every lesson");
+  });
 });
 
 describe("recipe runtime", () => {
@@ -117,5 +127,21 @@ describe("recipe runtime", () => {
     expect(result.isolated).toBe(true);
     expect(result.patch).toContain("# experiment");
     expect(await readFile(join(root, "README.md"), "utf8")).toBe(original);
+  });
+
+  it("isolates undeclared writes, captures new files, and hides the host HOME", async () => {
+    const root = await repository();
+    const result = await runRecipe(root, {
+      id: "undeclared", title: "undeclared", command: "node",
+      args: ["-e", "require('fs').writeFileSync('new.txt', process.env.HOME)"], cwd: ".",
+      lifecycle: "oneshot", timeoutMs: 5_000, env: {},
+      capabilities: { writes: [], network: "none", secrets: [], containers: false, externalSystems: [] },
+    });
+    expect(result.isolated).toBe(true);
+    expect(result.changedFiles).toEqual(["new.txt"]);
+    expect(result.undeclaredWrites).toEqual(["new.txt"]);
+    expect(result.patch).toContain("new.txt");
+    expect(result.patch).not.toContain(process.env.HOME ?? "__missing_home__");
+    await expect(readFile(join(root, "new.txt"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
   });
 });
