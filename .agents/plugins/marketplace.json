@@ -1,0 +1,20 @@
+{
+  "name": "tourguide",
+  "interface": {
+    "displayName": "Tourguide"
+  },
+  "plugins": [
+    {
+      "name": "tourguide",
+      "source": {
+        "source": "local",
+        "path": "./plugins/tourguide"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

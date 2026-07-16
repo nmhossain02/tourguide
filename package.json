@@ -1,0 +1,25 @@
+{
+  "name": "tourguide",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Interactive, agent-authored tours for unfamiliar codebases.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@11.13.1",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "corepack pnpm --filter @tourguide/web build && corepack pnpm --filter @tourguide/server build",
+    "dev": "corepack pnpm --filter @tourguide/server dev",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate:skill": "python3 /home/nabeel/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tourguide/skills/tourguide",
+    "validate:plugin": "python3 /home/nabeel/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py plugins/tourguide",
+    "validate": "corepack pnpm typecheck && corepack pnpm test && corepack pnpm build && corepack pnpm validate:skill && corepack pnpm validate:plugin"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  }
+}

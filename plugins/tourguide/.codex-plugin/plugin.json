@@ -1,0 +1,30 @@
+{
+  "name": "tourguide",
+  "version": "0.1.0",
+  "description": "Build and explore interactive, evidence-backed tours of unfamiliar codebases.",
+  "author": {
+    "name": "nmhossain02",
+    "url": "https://github.com/nmhossain02"
+  },
+  "homepage": "https://nmhossain02.github.io/tourguide/",
+  "repository": "https://github.com/nmhossain02/tourguide",
+  "license": "Apache-2.0",
+  "keywords": ["onboarding", "codebase", "learning", "developer-tools"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Tourguide",
+    "shortDescription": "Interactive tours for unfamiliar codebases",
+    "longDescription": "Analyze a Git repository, generate evidence-backed lessons, and explore its local development workflows in a safe browser workbench.",
+    "developerName": "nmhossain02",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://nmhossain02.github.io/tourguide/",
+    "defaultPrompt": [
+      "Teach me how to develop this repository locally.",
+      "Open my Tourguide and refresh stale lessons.",
+      "Build a deeper tour of this repository's infrastructure."
+    ],
+    "brandColor": "#6D5EF5"
+  },
+  "mcpServers": "./.mcp.json"
+}

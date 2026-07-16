@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tourguide": {
+      "command": "node",
+      "args": ["./dist/tourguide.mjs", "mcp"],
+      "cwd": ".",
+      "env_vars": ["CODEX_HOME"],
+      "tool_timeout_sec": 900
+    }
+  }
+}

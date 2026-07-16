@@ -1,0 +1,25 @@
+{
+  "name": "@tourguide/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/cli.ts open ../..",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/static": "latest",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@tourguide/core": "workspace:*",
+    "fastify": "latest",
+    "open": "latest",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsup": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}
