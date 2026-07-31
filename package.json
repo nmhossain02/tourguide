@@ -7,14 +7,13 @@
   "packageManager": "pnpm@11.13.1",
   "engines": { "node": ">=22" },
   "scripts": {
-    "build": "corepack pnpm --filter @tourguide/web build && corepack pnpm --filter @tourguide/server build",
-    "dev": "corepack pnpm --filter @tourguide/server dev",
+    "build": "corepack pnpm --filter @tourguide/web build && corepack pnpm --filter @nmhossain02/tourguide build",
+    "dev": "corepack pnpm --filter @nmhossain02/tourguide dev",
     "typecheck": "corepack pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate:skill": "node scripts/validate-metadata.mjs skill",
     "validate:plugin": "node scripts/validate-metadata.mjs plugin",
-    "validate": "corepack pnpm typecheck && corepack pnpm test && corepack pnpm build && corepack pnpm validate:skill && corepack pnpm validate:plugin"
+    "validate": "corepack pnpm typecheck && corepack pnpm test && corepack pnpm build && corepack pnpm validate:plugin"
   },
   "devDependencies": {
     "@types/node": "latest",

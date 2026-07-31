@@ -2987,7 +2987,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve4.call(this, root, ref);
+      let _sch = resolve5.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a3 = root.localRefs) === null || _a3 === void 0 ? void 0 : _a3[ref];
         const { schemaId } = this.opts;
@@ -3014,7 +3014,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve4(root, ref) {
+    function resolve5(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3645,55 +3645,55 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve4(baseURI, relativeURI, options) {
+    function resolve5(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse3(baseURI, schemelessOptions), parse3(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative2, options, skipNormalization) {
+    function resolveComponent(base, relative3, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse3(serialize(base, options), options);
-        relative2 = parse3(serialize(relative2, options), options);
+        relative3 = parse3(serialize(relative3, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative2.scheme) {
-        target.scheme = relative2.scheme;
-        target.userinfo = relative2.userinfo;
-        target.host = relative2.host;
-        target.port = relative2.port;
-        target.path = removeDotSegments(relative2.path || "");
-        target.query = relative2.query;
+      if (!options.tolerant && relative3.scheme) {
+        target.scheme = relative3.scheme;
+        target.userinfo = relative3.userinfo;
+        target.host = relative3.host;
+        target.port = relative3.port;
+        target.path = removeDotSegments(relative3.path || "");
+        target.query = relative3.query;
       } else {
-        if (relative2.userinfo !== void 0 || relative2.host !== void 0 || relative2.port !== void 0) {
-          target.userinfo = relative2.userinfo;
-          target.host = relative2.host;
-          target.port = relative2.port;
-          target.path = removeDotSegments(relative2.path || "");
-          target.query = relative2.query;
+        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
+          target.userinfo = relative3.userinfo;
+          target.host = relative3.host;
+          target.port = relative3.port;
+          target.path = removeDotSegments(relative3.path || "");
+          target.query = relative3.query;
         } else {
-          if (!relative2.path) {
+          if (!relative3.path) {
             target.path = base.path;
-            if (relative2.query !== void 0) {
-              target.query = relative2.query;
+            if (relative3.query !== void 0) {
+              target.query = relative3.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative2.path[0] === "/") {
-              target.path = removeDotSegments(relative2.path);
+            if (relative3.path[0] === "/") {
+              target.path = removeDotSegments(relative3.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative2.path;
+                target.path = "/" + relative3.path;
               } else if (!base.path) {
-                target.path = relative2.path;
+                target.path = relative3.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative2.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative3.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative2.query;
+            target.query = relative3.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -3701,7 +3701,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative2.fragment;
+      target.fragment = relative3.fragment;
       return target;
     }
     function equal(uriA, uriB, options) {
@@ -3903,7 +3903,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve4,
+      resolve: resolve5,
       resolveComponent,
       equal,
       serialize,
@@ -10841,7 +10841,7 @@ var require_parseTokenList = __commonJS({
 var require_depd = __commonJS({
   "../../node_modules/.pnpm/depd@2.0.0/node_modules/depd/index.js"(exports, module) {
     "use strict";
-    var relative2 = __require("path").relative;
+    var relative3 = __require("path").relative;
     module.exports = depd;
     var basePath = process.cwd();
     function containsNamespace(str, namespace) {
@@ -11033,7 +11033,7 @@ var require_depd = __commonJS({
       return formatted;
     }
     function formatLocation(callSite) {
-      return relative2(basePath, callSite[0]) + ":" + callSite[1] + ":" + callSite[2];
+      return relative3(basePath, callSite[0]) + ":" + callSite[1] + ":" + callSite[2];
     }
     function getStack() {
       var limit = Error.stackTraceLimit;
@@ -11568,10 +11568,10 @@ var require_send = __commonJS({
     var { parseTokenList } = require_parseTokenList();
     var { createHttpError } = require_createHttpError();
     var extname = path2.extname;
-    var join3 = path2.join;
+    var join6 = path2.join;
     var normalize = path2.normalize;
-    var resolve4 = path2.resolve;
-    var sep = path2.sep;
+    var resolve5 = path2.resolve;
+    var sep2 = path2.sep;
     var Readable = stream.Readable;
     var BYTES_RANGE_REGEXP = /^ *bytes=/;
     var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1e3;
@@ -11617,7 +11617,7 @@ var require_send = __commonJS({
       const lastModified = options.lastModified !== void 0 ? Boolean(options.lastModified) : true;
       const maxage = normalizeMaxAge(options.maxAge ?? options.maxage);
       const maxContentRangeChunkSize = options.maxContentRangeChunkSize !== void 0 ? Number(options.maxContentRangeChunkSize) : null;
-      const root = options.root ? resolve4(options.root) : null;
+      const root = options.root ? resolve5(options.root) : null;
       const highWaterMark = Number.isSafeInteger(options.highWaterMark) && options.highWaterMark > 0 ? options.highWaterMark : null;
       return {
         acceptRanges,
@@ -11648,21 +11648,21 @@ var require_send = __commonJS({
       let parts;
       if (root !== null) {
         if (path3) {
-          path3 = normalize("." + sep + path3);
+          path3 = normalize("." + sep2 + path3);
         }
         if (UP_PATH_REGEXP.test(path3)) {
           debug('malicious path "%s"', path3);
           return { statusCode: 403 };
         }
-        parts = path3.split(sep);
-        path3 = normalize(join3(root, path3));
+        parts = path3.split(sep2);
+        path3 = normalize(join6(root, path3));
       } else {
         if (UP_PATH_REGEXP.test(path3)) {
           debug('malicious path "%s"', path3);
           return { statusCode: 403 };
         }
-        parts = normalize(path3).split(sep);
-        path3 = resolve4(path3);
+        parts = normalize(path3).split(sep2);
+        path3 = resolve5(path3);
       }
       return { path: path3, parts };
     }
@@ -11758,9 +11758,9 @@ var require_send = __commonJS({
       );
     }
     function tryStat(path3) {
-      return new Promise((resolve5) => {
+      return new Promise((resolve6) => {
         fs7.stat(path3, function onstat(error51, stat) {
-          resolve5({ error: error51, stat });
+          resolve6({ error: error51, stat });
         });
       });
     }
@@ -11938,7 +11938,7 @@ var require_send = __commonJS({
       let err;
       for (let i = 0; i < options.index.length; i++) {
         const index = options.index[i];
-        const p = join3(path3, index);
+        const p = join6(path3, index);
         const { error: error51, stat } = await tryStat(p);
         if (error51) {
           err = error51;
@@ -11954,7 +11954,7 @@ var require_send = __commonJS({
     }
     async function sendFile(request, path3, options) {
       const { error: error51, stat } = await tryStat(path3);
-      if (error51 && error51.code === "ENOENT" && !extname(path3) && path3[path3.length - 1] !== sep) {
+      if (error51 && error51.code === "ENOENT" && !extname(path3) && path3[path3.length - 1] !== sep2) {
         let err = error51;
         for (let i = 0; i < options.extensions.length; i++) {
           const extension = options.extensions[i];
@@ -12726,41 +12726,41 @@ var require_queue = __commonJS({
       queue.drained = drained;
       return queue;
       function push(value) {
-        var p = new Promise(function(resolve4, reject) {
+        var p = new Promise(function(resolve5, reject) {
           pushCb(value, function(err, result2) {
             if (err) {
               reject(err);
               return;
             }
-            resolve4(result2);
+            resolve5(result2);
           });
         });
         p.catch(noop);
         return p;
       }
       function unshift(value) {
-        var p = new Promise(function(resolve4, reject) {
+        var p = new Promise(function(resolve5, reject) {
           unshiftCb(value, function(err, result2) {
             if (err) {
               reject(err);
               return;
             }
-            resolve4(result2);
+            resolve5(result2);
           });
         });
         p.catch(noop);
         return p;
       }
       function drained() {
-        var p = new Promise(function(resolve4) {
+        var p = new Promise(function(resolve5) {
           process.nextTick(function() {
             if (queue.idle()) {
-              resolve4();
+              resolve5();
             } else {
               var previousDrain = queue.drain;
               queue.drain = function() {
                 if (typeof previousDrain === "function") previousDrain();
-                resolve4();
+                resolve5();
                 queue.drain = previousDrain;
               };
             }
@@ -12859,9 +12859,9 @@ var require_error = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/@fastify+static@10.1.0/node_modules/@fastify/static/lib/errors.js
+// ../../node_modules/.pnpm/@fastify+static@10.1.2/node_modules/@fastify/static/lib/errors.js
 var require_errors2 = __commonJS({
-  "../../node_modules/.pnpm/@fastify+static@10.1.0/node_modules/@fastify/static/lib/errors.js"(exports, module) {
+  "../../node_modules/.pnpm/@fastify+static@10.1.2/node_modules/@fastify/static/lib/errors.js"(exports, module) {
     "use strict";
     var { createError } = require_error();
     module.exports.FST_STATIC_INVALID_OPTION = createError(
@@ -12888,9 +12888,9 @@ var require_errors2 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/@fastify+static@10.1.0/node_modules/@fastify/static/lib/dirList.js
+// ../../node_modules/.pnpm/@fastify+static@10.1.2/node_modules/@fastify/static/lib/dirList.js
 var require_dirList = __commonJS({
-  "../../node_modules/.pnpm/@fastify+static@10.1.0/node_modules/@fastify/static/lib/dirList.js"(exports, module) {
+  "../../node_modules/.pnpm/@fastify+static@10.1.2/node_modules/@fastify/static/lib/dirList.js"(exports, module) {
     "use strict";
     var os2 = __require("os");
     var path2 = __require("path");
@@ -13091,14 +13091,14 @@ var require_dirList = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/@fastify+static@10.1.0/node_modules/@fastify/static/index.js
+// ../../node_modules/.pnpm/@fastify+static@10.1.2/node_modules/@fastify/static/index.js
 var require_static = __commonJS({
-  "../../node_modules/.pnpm/@fastify+static@10.1.0/node_modules/@fastify/static/index.js"(exports, module) {
+  "../../node_modules/.pnpm/@fastify+static@10.1.2/node_modules/@fastify/static/index.js"(exports, module) {
     "use strict";
     var path2 = __require("path");
     var { fileURLToPath: fileURLToPath3 } = __require("url");
     var { statSync } = __require("fs");
-    var { basename: basename2 } = __require("path");
+    var { basename: basename3 } = __require("path");
     var { glob } = require_index_min();
     var fp = require_fastify_plugin();
     var send = require_send2();
@@ -13113,6 +13113,8 @@ var require_static = __commonJS({
     } = errors;
     var endForwardSlashRegex = /\/$/u;
     var asteriskRegex = /\*/gu;
+    var dotDotSegmentRegex = /(?:^|[\\/])\.\.(?:[\\/]|$)/u;
+    var leadingDotDotSegmentRegex = /^\/?\.\.(?:[\\/]|$)/u;
     var supportedEncodings = ["br", "gzip", "deflate"];
     send.mime.default_type = "application/octet-stream";
     var encodingExtensionMap = {
@@ -13121,7 +13123,7 @@ var require_static = __commonJS({
       deflate: ".deflate"
     };
     function contentDisposition(filename) {
-      return create(basename2(filename));
+      return create(basename3(filename));
     }
     async function fastifyStatic2(fastify, opts) {
       const suppressWarning = opts.suppressWarning ?? false;
@@ -13207,7 +13209,10 @@ var require_static = __commonJS({
             handler(req, reply) {
               matchRoutePrefix ??= createRoutePrefixMatcher(req.routeOptions.url);
               const pathname = getPathnameForSend(req.raw.url, matchRoutePrefix);
-              if (!pathname) {
+              if (pathname === null) {
+                return reply.send(forbiddenPathError());
+              }
+              if (pathname === void 0) {
                 return reply.callNotFound();
               }
               pumpSendToReply(req, reply, pathname, sendOptions.root);
@@ -13248,8 +13253,8 @@ var require_static = __commonJS({
               }
             }
           }
-          for (const [dirname3, rootPath] of indexDirs.entries()) {
-            const pathname = dirname3 + (dirname3.endsWith("/") ? "" : "/");
+          for (const [dirname4, rootPath] of indexDirs.entries()) {
+            const pathname = dirname4 + (dirname4.endsWith("/") ? "" : "/");
             const file2 = "/" + pathname.replace(prefix, "");
             setUpHeadAndGet(routeOpts, pathname, file2, rootPath);
             if (opts.redirect === true) {
@@ -13276,6 +13281,7 @@ var require_static = __commonJS({
       }
       async function pumpSendToReply(request, reply, pathname, rootPath, rootPathOffset = 0, pumpOptions, checkedEncodings) {
         const pathnameOrig = pathname;
+        const normalizedPathname = normalizeRequestPathname(pathname);
         const options = Object.assign({}, sendOptions, pumpOptions);
         if (rootPath) {
           if (Array.isArray(rootPath)) {
@@ -13286,7 +13292,10 @@ var require_static = __commonJS({
         } else if (path2.isAbsolute(pathname) === false) {
           return reply.callNotFound();
         }
-        if (allowedPath && !allowedPath(pathname, options.root, request)) {
+        if (dotDotSegmentRegex.test(pathname) && !leadingDotDotSegmentRegex.test(pathname)) {
+          return reply.send(forbiddenPathError());
+        }
+        if (allowedPath && !allowedPath(normalizedPathname, options.root, request)) {
           return reply.callNotFound();
         }
         let encoding;
@@ -13505,6 +13514,18 @@ var require_static = __commonJS({
       }
       return `${type}; charset=utf-8`;
     }
+    function forbiddenPathError() {
+      const error51 = new Error("Forbidden");
+      error51.status = 403;
+      error51.statusCode = 403;
+      return error51;
+    }
+    function normalizeRequestPathname(pathname) {
+      if (!pathname.startsWith("/")) {
+        return pathname;
+      }
+      return path2.posix.normalize(pathname);
+    }
     function findIndexFile(pathname, root, indexFiles = ["index.html"]) {
       if (Array.isArray(indexFiles)) {
         return indexFiles.find((filename) => {
@@ -13617,7 +13638,12 @@ var require_static = __commonJS({
         pathname = "/" + pathname;
       }
       try {
-        return decodeURI(pathname);
+        const decodedUrlPathname = decodeURI(url2.slice(0, pathnameEnd));
+        const decodedPathname = decodeURI(pathname);
+        if (dotDotSegmentRegex.test(decodedUrlPathname) && !leadingDotDotSegmentRegex.test(decodedPathname)) {
+          return null;
+        }
+        return decodedPathname;
       } catch {
       }
     }
@@ -13889,8 +13915,8 @@ var require_create_promise = __commonJS({
         reject: null,
         promise: null
       };
-      obj.promise = new Promise((resolve4, reject) => {
-        obj.resolve = resolve4;
+      obj.promise = new Promise((resolve5, reject) => {
+        obj.resolve = resolve5;
         obj.reject = reject;
       });
       return obj;
@@ -14159,11 +14185,11 @@ var require_thenify = __commonJS({
         return;
       }
       debug("thenify");
-      return (resolve4, reject) => {
+      return (resolve5, reject) => {
         const p = this._loadRegistered();
         return p.then(() => {
           this[kThenifyDoNotWrap] = true;
-          return resolve4(this._server);
+          return resolve5(this._server);
         }, reject);
       };
     }
@@ -14300,12 +14326,12 @@ var require_boot = __commonJS({
     inherits(Boot, EE);
     if ("asyncDispose" in Symbol) {
       Boot.prototype[Symbol.asyncDispose] = function() {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           this.close((err) => {
             if (err) {
               return reject(err);
             }
-            resolve4();
+            resolve5();
           });
         });
       };
@@ -14452,12 +14478,12 @@ var require_boot = __commonJS({
           throw new AVV_ERR_CALLBACK_NOT_FN("close", typeof func);
         }
       } else {
-        promise2 = new Promise(function(resolve4, reject) {
+        promise2 = new Promise(function(resolve5, reject) {
           func = function(err) {
             if (err) {
               return reject(err);
             }
-            resolve4();
+            resolve5();
           };
         });
       }
@@ -14477,7 +14503,7 @@ var require_boot = __commonJS({
         queueMicrotask(this.start.bind(this));
         return;
       }
-      return new Promise((resolve4, reject) => {
+      return new Promise((resolve5, reject) => {
         this._readyQ.push(readyPromiseCB);
         this.start();
         const relativeContext = this._current[0].server;
@@ -14485,7 +14511,7 @@ var require_boot = __commonJS({
           if (err) {
             reject(err);
           } else {
-            resolve4(relativeContext);
+            resolve5(relativeContext);
           }
           process.nextTick(done);
         }
@@ -14694,9 +14720,9 @@ var require_boot = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/symbols.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/symbols.js
 var require_symbols2 = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/symbols.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/symbols.js"(exports, module) {
     "use strict";
     var keys = {
       kAvvioBoot: /* @__PURE__ */ Symbol("fastify.avvioBoot"),
@@ -14829,9 +14855,9 @@ var require_process_warning = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/warnings.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/warnings.js
 var require_warnings = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/warnings.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/warnings.js"(exports, module) {
     "use strict";
     var { createWarning } = require_process_warning();
     var FSTWRN001 = createWarning({
@@ -14888,9 +14914,9 @@ var require_warnings = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/errors.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/errors.js
 var require_errors4 = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/errors.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/errors.js"(exports, module) {
     "use strict";
     var createError = require_error();
     var codes = {
@@ -15331,6 +15357,16 @@ var require_errors4 = __commonJS({
         500,
         TypeError
       ),
+      FST_ERR_ROUTE_MISSING_CONTENT_TYPE: createError(
+        "FST_ERR_ROUTE_MISSING_CONTENT_TYPE",
+        "Method '%s' must provide a 'Content-Type' header.",
+        400
+      ),
+      FST_ERR_ROUTE_MISSING_CONTENT: createError(
+        "FST_ERR_ROUTE_MISSING_CONTENT",
+        "Method '%s' must provide a request body.",
+        400
+      ),
       /**
        *  again listen when close server
        */
@@ -15410,9 +15446,9 @@ var require_errors4 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/hooks.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/hooks.js
 var require_hooks = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/hooks.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/hooks.js"(exports, module) {
     "use strict";
     var applicationHooks = [
       "onRoute",
@@ -15670,7 +15706,11 @@ var require_hooks = __commonJS({
         }
       }
       function handleResolve(newPayload) {
-        next(null, newPayload);
+        try {
+          next(null, newPayload);
+        } catch (err) {
+          cb(err, request, reply, payload);
+        }
       }
       function handleReject(err) {
         if (!err) {
@@ -15771,9 +15811,9 @@ var require_hooks = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/noop-set.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/noop-set.js
 var require_noop_set = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/noop-set.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/noop-set.js"(exports, module) {
     "use strict";
     module.exports = function noopSet() {
       return {
@@ -15791,15 +15831,15 @@ var require_noop_set = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/promise.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/promise.js
 var require_promise = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/promise.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/promise.js"(exports, module) {
     "use strict";
     var { kTestInternals } = require_symbols2();
     function withResolvers() {
       let res, rej;
-      const promise2 = new Promise((resolve4, reject) => {
-        res = resolve4;
+      const promise2 = new Promise((resolve5, reject) => {
+        res = resolve5;
         rej = reject;
       });
       return { promise: promise2, resolve: res, reject: rej };
@@ -15815,9 +15855,9 @@ var require_promise = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/server.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/server.js
 var require_server = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/server.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/server.js"(exports, module) {
     "use strict";
     var http = __require("http");
     var https = __require("https");
@@ -15898,15 +15938,15 @@ var require_server = __commonJS({
         if (cb === void 0) {
           const listening = listenPromise.call(this, server, listenOptions);
           return listening.then((address) => {
-            const { promise: promise2, resolve: resolve4 } = PonyPromise.withResolvers();
+            const { promise: promise2, resolve: resolve5 } = PonyPromise.withResolvers();
             if (host === "localhost") {
               multipleBindings.call(this, server, httpHandler, options, listenOptions, () => {
                 this[kState].listening = true;
-                resolve4(address);
+                resolve5(address);
                 onListenHookRunner(this);
               });
             } else {
-              resolve4(address);
+              resolve5(address);
               onListenHookRunner(this);
             }
             return promise2;
@@ -16033,7 +16073,7 @@ var require_server = __commonJS({
       }
       return this.ready().then(() => {
         if (this[kState].aborted) return;
-        const { promise: promise2, resolve: resolve4, reject } = PonyPromise.withResolvers();
+        const { promise: promise2, resolve: resolve5, reject } = PonyPromise.withResolvers();
         const errEventHandler = (err) => {
           cleanup();
           this[kState].listening = false;
@@ -16042,7 +16082,7 @@ var require_server = __commonJS({
         const listeningEventHandler = () => {
           cleanup();
           this[kState].listening = true;
-          resolve4(logServerAddress.call(
+          resolve5(logServerAddress.call(
             this,
             server,
             listenOptions.listenTextResolver || defaultResolveServerListeningText
@@ -16143,9 +16183,9 @@ var require_server = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/error-status.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/error-status.js
 var require_error_status = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/error-status.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/error-status.js"(exports, module) {
     "use strict";
     var {
       kReplyHasStatusCode
@@ -16160,9 +16200,9 @@ var require_error_status = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/wrap-thenable.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/wrap-thenable.js
 var require_wrap_thenable = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/wrap-thenable.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/wrap-thenable.js"(exports, module) {
     "use strict";
     var {
       kReplyIsError,
@@ -16223,9 +16263,9 @@ var require_wrap_thenable = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/validation.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/validation.js
 var require_validation2 = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/validation.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/validation.js"(exports, module) {
     "use strict";
     var {
       kSchemaHeaders: headersSchema,
@@ -16347,7 +16387,7 @@ var require_validation2 = __commonJS({
       function answer(ret2) {
         if (ret2 === false) return validatorFunction.errors;
         if (ret2 && ret2.error) return ret2.error;
-        if (ret2 && ret2.value) request[paramName] = ret2.value;
+        if (ret2 && typeof ret2 === "object" && "value" in ret2) request[paramName] = ret2.value;
         return false;
       }
     }
@@ -17123,12 +17163,13 @@ var require_toad_cache = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/content-type.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/content-type.js
 var require_content_type = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/content-type.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/content-type.js"(exports, module) {
     "use strict";
     var { LruMap: Lru } = require_toad_cache();
-    var keyValuePairsReg = /(?:^|;)\s*([\w!#$%&'*+.^`|~-]+)=([^;]*)/gm;
+    var keyValuePairsReg = /(?:^|;)\s*([\w!#$%&'*+.^`|~-]+)=("(?:[\t\u0020\u0021\u0023-\u005b\u005d-\u007e\u0080-\u00ff]|\\[\t\u0020-\u00ff])*"|[\w!#$%&'*+.^`|~-]+)/gu;
+    var quotedPairReg = /\\([\t\u0020-\u00ff])/gu;
     var typeNameReg = /^[\w!#$%&'*+.^`|~-]+$/;
     var subtypeNameReg = /^[\w!#$%&'*+.^`|~-]+\s*$/;
     var cache = new Lru(100);
@@ -17198,17 +17239,14 @@ var require_content_type = __commonJS({
         let matches = keyValuePairsReg.exec(paramsList);
         while (matches) {
           const key = matches[1].toLowerCase();
-          const value = matches[2];
-          if (value[0] === '"') {
-            if (value.at(-1) !== '"') {
-              this.#parameters.set(key, "invalid quoted string");
-              matches = keyValuePairsReg.exec(paramsList);
-              continue;
+          let value = matches[2];
+          if (value.charCodeAt(0) === 34) {
+            value = value.slice(1, -1);
+            if (value.indexOf("\\") !== -1) {
+              value = value.replace(quotedPairReg, "$1");
             }
-            this.#parameters.set(key, value.slice(1, value.length - 1));
-          } else {
-            this.#parameters.set(key, value);
           }
+          this.#parameters.set(key, value);
           matches = keyValuePairsReg.exec(paramsList);
         }
       }
@@ -17252,15 +17290,19 @@ var require_content_type = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/handle-request.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/handle-request.js
 var require_handle_request = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/handle-request.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/handle-request.js"(exports, module) {
     "use strict";
     var diagnostics = __require("diagnostics_channel");
     var wrapThenable = require_wrap_thenable();
     var { validate: validateSchema } = require_validation2();
     var { preValidationHookRunner, preHandlerHookRunner } = require_hooks();
-    var { FST_ERR_CTP_INVALID_MEDIA_TYPE } = require_errors4();
+    var {
+      FST_ERR_CTP_INVALID_MEDIA_TYPE,
+      FST_ERR_ROUTE_MISSING_CONTENT_TYPE,
+      FST_ERR_ROUTE_MISSING_CONTENT
+    } = require_errors4();
     var { setErrorStatusCode } = require_error_status();
     var {
       kReplyIsError,
@@ -17287,11 +17329,20 @@ var require_handle_request = __commonJS({
       if (this[kSupportedHTTPMethods].bodywith.has(method)) {
         const headers = request.headers;
         const ctHeader = headers["content-type"];
+        if (method === "QUERY") {
+          if (ctHeader === void 0) {
+            reply[kReplyIsError] = true;
+            reply.status(400).send(new FST_ERR_ROUTE_MISSING_CONTENT_TYPE(method));
+            return;
+          }
+          if (isEmptyBody(headers)) {
+            reply[kReplyIsError] = true;
+            reply.status(400).send(new FST_ERR_ROUTE_MISSING_CONTENT(method));
+            return;
+          }
+        }
         if (ctHeader === void 0) {
-          const contentLength = headers["content-length"];
-          const transferEncoding = headers["transfer-encoding"];
-          const isEmptyBody = transferEncoding === void 0 && (contentLength === void 0 || contentLength === "0");
-          if (isEmptyBody) {
+          if (isEmptyBody(headers)) {
             handler(request, reply);
             return;
           }
@@ -17326,6 +17377,11 @@ var require_handle_request = __commonJS({
       } catch (err) {
         preValidationCallback(err, request, reply);
       }
+    }
+    function isEmptyBody(headers) {
+      const contentLength = headers["content-length"];
+      const transferEncoding = headers["transfer-encoding"];
+      return transferEncoding === void 0 && (contentLength === void 0 || contentLength === "0");
     }
     function preValidationCallback(err, request, reply) {
       if (reply.sent === true) return;
@@ -17423,9 +17479,9 @@ var require_handle_request = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/config-validator.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/config-validator.js
 var require_config_validator = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/config-validator.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/config-validator.js"(exports, module) {
     "use strict";
     module.exports = validate10;
     module.exports.default = validate10;
@@ -18775,9 +18831,9 @@ var require_rfdc = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/initial-config-validation.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/initial-config-validation.js
 var require_initial_config_validation = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/initial-config-validation.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/initial-config-validation.js"(exports, module) {
     "use strict";
     var validate = require_config_validator();
     var deepClone = require_rfdc()({ circles: true, proto: false });
@@ -18808,9 +18864,9 @@ var require_initial_config_validation = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/log-controller.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/log-controller.js
 var require_log_controller = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/log-controller.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/log-controller.js"(exports, module) {
     "use strict";
     var { defaultInitOptions } = require_initial_config_validation();
     var LogController = class {
@@ -20243,7 +20299,7 @@ var require_sonic_boom = __commonJS({
       if (!(this instanceof SonicBoom)) {
         return new SonicBoom(opts);
       }
-      let { fd, dest, minLength, maxLength, maxWrite, periodicFlush, sync, append = true, mkdir: mkdir3, retryEAGAIN, fsync, contentMode, mode } = opts || {};
+      let { fd, dest, minLength, maxLength, maxWrite, periodicFlush, sync, append = true, mkdir: mkdir5, retryEAGAIN, fsync, contentMode, mode } = opts || {};
       fd = fd || dest;
       this._len = 0;
       this.fd = -1;
@@ -20268,7 +20324,7 @@ var require_sonic_boom = __commonJS({
       this.append = append || false;
       this.mode = mode;
       this.retryEAGAIN = retryEAGAIN || (() => true);
-      this.mkdir = mkdir3 || false;
+      this.mkdir = mkdir5 || false;
       let fsWriteSync;
       let fsWrite;
       if (contentMode === kContentModeBuffer) {
@@ -20980,7 +21036,7 @@ var require_thread_stream = __commonJS({
     var { version: version2 } = require_package();
     var { EventEmitter } = __require("events");
     var { Worker } = __require("worker_threads");
-    var { join: join3 } = __require("path");
+    var { join: join6 } = __require("path");
     var { pathToFileURL } = __require("url");
     var { wait } = require_wait();
     var {
@@ -21031,7 +21087,7 @@ var require_thread_stream = __commonJS({
     function createWorker(stream, opts) {
       const { filename, workerData } = opts;
       const bundlerOverrides = "__bundlerPathsOverrides" in globalThis ? globalThis.__bundlerPathsOverrides : {};
-      const toExecute = bundlerOverrides["thread-stream-worker"] || join3(__dirname, "lib", "worker.js");
+      const toExecute = bundlerOverrides["thread-stream-worker"] || join6(__dirname, "lib", "worker.js");
       const worker = new Worker(toExecute, {
         ...opts.workerOpts,
         name: opts.workerOpts?.name || "thread-stream",
@@ -21499,7 +21555,7 @@ var require_transport = __commonJS({
     var { createRequire } = __require("module");
     var { existsSync: existsSync2 } = __require("fs");
     var getCallers = require_caller();
-    var { join: join3, isAbsolute: isAbsolute2, sep } = __require("path");
+    var { join: join6, isAbsolute: isAbsolute3, sep: sep2 } = __require("path");
     var { fileURLToPath: fileURLToPath3 } = __require("url");
     var sleep = require_atomic_sleep();
     var onExit = require_on_exit_leak_free();
@@ -21571,7 +21627,7 @@ var require_transport = __commonJS({
           return false;
         }
       }
-      return isAbsolute2(path2) && !existsSync2(path2);
+      return isAbsolute3(path2) && !existsSync2(path2);
     }
     function stripQuotes(value) {
       const first = value[0];
@@ -21652,7 +21708,7 @@ var require_transport = __commonJS({
         throw new Error("only one of target or targets can be specified");
       }
       if (targets) {
-        target = bundlerOverrides["pino-worker"] || join3(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join6(__dirname, "worker.js");
         options.targets = targets.filter((dest) => dest.target).map((dest) => {
           return {
             ...dest,
@@ -21670,7 +21726,7 @@ var require_transport = __commonJS({
           });
         });
       } else if (pipeline) {
-        target = bundlerOverrides["pino-worker"] || join3(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join6(__dirname, "worker.js");
         options.pipelines = [pipeline.map((dest) => {
           return {
             ...dest,
@@ -21689,16 +21745,16 @@ var require_transport = __commonJS({
       return buildStream(fixTarget(target), options, worker, sync, name);
       function fixTarget(origin) {
         origin = bundlerOverrides[origin] || origin;
-        if (isAbsolute2(origin) || origin.indexOf("file://") === 0) {
+        if (isAbsolute3(origin) || origin.indexOf("file://") === 0) {
           return origin;
         }
         if (origin === "pino/file") {
-          return join3(__dirname, "..", "file.js");
+          return join6(__dirname, "..", "file.js");
         }
         let fixTarget2;
         for (const filePath of callers) {
           try {
-            const context = filePath === "node:repl" ? process.cwd() + sep : filePath;
+            const context = filePath === "node:repl" ? process.cwd() + sep2 : filePath;
             fixTarget2 = createRequire(context).resolve(origin);
             break;
           } catch (err) {
@@ -22674,7 +22730,7 @@ var require_safe_stable_stringify = __commonJS({
               return circularValue;
             }
             let res = "";
-            let join3 = ",";
+            let join6 = ",";
             const originalIndentation = indentation;
             if (Array.isArray(value)) {
               if (value.length === 0) {
@@ -22688,7 +22744,7 @@ var require_safe_stable_stringify = __commonJS({
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join3 = `,
+                join6 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -22696,13 +22752,13 @@ ${indentation}`;
               for (; i < maximumValuesToStringify - 1; i++) {
                 const tmp2 = stringifyFnReplacer(String(i), value, stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join3;
+                res += join6;
               }
               const tmp = stringifyFnReplacer(String(i), value, stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join3}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join6}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -22723,7 +22779,7 @@ ${originalIndentation}`;
             let separator = "";
             if (spacer !== "") {
               indentation += spacer;
-              join3 = `,
+              join6 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -22737,13 +22793,13 @@ ${indentation}`;
               const tmp = stringifyFnReplacer(key2, value, stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join3;
+                separator = join6;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...":${whitespace}"${getItemCount(removedKeys)} not stringified"`;
-              separator = join3;
+              separator = join6;
             }
             if (spacer !== "" && separator.length > 1) {
               res = `
@@ -22784,7 +22840,7 @@ ${originalIndentation}`;
             }
             const originalIndentation = indentation;
             let res = "";
-            let join3 = ",";
+            let join6 = ",";
             if (Array.isArray(value)) {
               if (value.length === 0) {
                 return "[]";
@@ -22797,7 +22853,7 @@ ${originalIndentation}`;
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join3 = `,
+                join6 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -22805,13 +22861,13 @@ ${indentation}`;
               for (; i < maximumValuesToStringify - 1; i++) {
                 const tmp2 = stringifyArrayReplacer(String(i), value[i], stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join3;
+                res += join6;
               }
               const tmp = stringifyArrayReplacer(String(i), value[i], stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join3}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join6}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -22824,7 +22880,7 @@ ${originalIndentation}`;
             let whitespace = "";
             if (spacer !== "") {
               indentation += spacer;
-              join3 = `,
+              join6 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -22833,7 +22889,7 @@ ${indentation}`;
               const tmp = stringifyArrayReplacer(key2, value[key2], stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join3;
+                separator = join6;
               }
             }
             if (spacer !== "" && separator.length > 1) {
@@ -22891,20 +22947,20 @@ ${originalIndentation}`;
               indentation += spacer;
               let res2 = `
 ${indentation}`;
-              const join4 = `,
+              const join7 = `,
 ${indentation}`;
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
               let i = 0;
               for (; i < maximumValuesToStringify - 1; i++) {
                 const tmp2 = stringifyIndent(String(i), value[i], stack, spacer, indentation);
                 res2 += tmp2 !== void 0 ? tmp2 : "null";
-                res2 += join4;
+                res2 += join7;
               }
               const tmp = stringifyIndent(String(i), value[i], stack, spacer, indentation);
               res2 += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res2 += `${join4}"... ${getItemCount(removedKeys)} not stringified"`;
+                res2 += `${join7}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               res2 += `
 ${originalIndentation}`;
@@ -22920,16 +22976,16 @@ ${originalIndentation}`;
               return '"[Object]"';
             }
             indentation += spacer;
-            const join3 = `,
+            const join6 = `,
 ${indentation}`;
             let res = "";
             let separator = "";
             let maximumPropertiesToStringify = Math.min(keyLength, maximumBreadth);
             if (isTypedArrayWithEntries(value)) {
-              res += stringifyTypedArray(value, join3, maximumBreadth);
+              res += stringifyTypedArray(value, join6, maximumBreadth);
               keys = keys.slice(value.length);
               maximumPropertiesToStringify -= value.length;
-              separator = join3;
+              separator = join6;
             }
             if (deterministic) {
               keys = sort(keys, comparator);
@@ -22940,13 +22996,13 @@ ${indentation}`;
               const tmp = stringifyIndent(key2, value[key2], stack, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}: ${tmp}`;
-                separator = join3;
+                separator = join6;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...": "${getItemCount(removedKeys)} not stringified"`;
-              separator = join3;
+              separator = join6;
             }
             if (separator !== "") {
               res = `
@@ -23472,9 +23528,9 @@ var require_pino = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/logger-pino.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/logger-pino.js
 var require_logger_pino = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/logger-pino.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/logger-pino.js"(exports, module) {
     "use strict";
     var pino = require_pino();
     var { serializersSym } = pino.symbols;
@@ -23530,9 +23586,9 @@ var require_logger_pino = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/logger-factory.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/logger-factory.js
 var require_logger_factory = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/logger-factory.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/logger-factory.js"(exports, module) {
     "use strict";
     var { performance: performance2 } = __require("perf_hooks");
     var {
@@ -23636,9 +23692,9 @@ var require_logger_factory = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/schemas.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/schemas.js
 var require_schemas = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/schemas.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/schemas.js"(exports, module) {
     "use strict";
     var fastClone = require_rfdc()({ circles: false, proto: true });
     var { kSchemaVisited, kSchemaResponse } = require_symbols2();
@@ -23747,7 +23803,7 @@ var require_schemas = __commonJS({
       }
       if (responseSchemaDef[statusCode]) {
         if (responseSchemaDef[statusCode].constructor === Object) {
-          const ct = new ContentType(contentType);
+          const ct = ContentType.from(contentType);
           if (ct.isValid) {
             if (responseSchemaDef[statusCode][ct.mediaType]) {
               return responseSchemaDef[statusCode][ct.mediaType];
@@ -23763,7 +23819,7 @@ var require_schemas = __commonJS({
       const fallbackStatusCode = (statusCode + "")[0] + "xx";
       if (responseSchemaDef[fallbackStatusCode]) {
         if (responseSchemaDef[fallbackStatusCode].constructor === Object) {
-          const ct = new ContentType(contentType);
+          const ct = ContentType.from(contentType);
           if (ct.isValid) {
             if (responseSchemaDef[fallbackStatusCode][ct.mediaType]) {
               return responseSchemaDef[fallbackStatusCode][ct.mediaType];
@@ -23778,7 +23834,7 @@ var require_schemas = __commonJS({
       }
       if (responseSchemaDef.default) {
         if (responseSchemaDef.default.constructor === Object) {
-          const ct = new ContentType(contentType);
+          const ct = ContentType.from(contentType);
           if (ct.isValid) {
             if (responseSchemaDef.default[ct.mediaType]) {
               return responseSchemaDef.default[ct.mediaType];
@@ -23921,9 +23977,9 @@ var require_serializer = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/error-serializer.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/error-serializer.js
 var require_error_serializer = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/error-serializer.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/error-serializer.js"(exports, module) {
     "use strict";
     var Serializer = require_serializer();
     var serializerState = { "mode": "standalone" };
@@ -24026,9 +24082,9 @@ var require_error_serializer = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/error-handler.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/error-handler.js
 var require_error_handler = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/error-handler.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/error-handler.js"(exports, module) {
     "use strict";
     var statusCodes = __require("http").STATUS_CODES;
     var wrapThenable = require_wrap_thenable();
@@ -24161,9 +24217,9 @@ var require_error_handler = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/decorate.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/decorate.js
 var require_decorate = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/decorate.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/decorate.js"(exports, module) {
     "use strict";
     var {
       kReply,
@@ -24301,9 +24357,9 @@ var require_decorate = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/reply.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/reply.js
 var require_reply = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/reply.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/reply.js"(exports, module) {
     "use strict";
     var eos = __require("stream").finished;
     var {
@@ -26150,9 +26206,9 @@ var require_proxy_addr = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/request.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/request.js
 var require_request = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/request.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/request.js"(exports, module) {
     "use strict";
     var proxyAddr = require_proxy_addr();
     var {
@@ -26489,9 +26545,9 @@ var require_request = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/context.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/context.js
 var require_context = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/context.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/context.js"(exports, module) {
     "use strict";
     var {
       kFourOhFourContext,
@@ -26682,9 +26738,9 @@ var require_secure_json_parse = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/content-type-parser.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/content-type-parser.js
 var require_content_type_parser = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/content-type-parser.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/content-type-parser.js"(exports, module) {
     "use strict";
     var { AsyncResource } = __require("async_hooks");
     var { FifoMap: Fifo } = require_toad_cache();
@@ -27406,8 +27462,8 @@ var require_properties2 = __commonJS({
     function validateProperties(cxt) {
       (0, metadata_1.checkMetadata)(cxt);
       const { gen, data, parentSchema, it } = cxt;
-      const { additionalProperties, nullable: nullable2 } = parentSchema;
-      if (it.jtdDiscriminator && nullable2)
+      const { additionalProperties, nullable: nullable3 } = parentSchema;
+      if (it.jtdDiscriminator && nullable3)
         throw new Error("JTD: nullable inside discriminator mapping");
       if (commonProperties()) {
         throw new Error("JTD: properties and optionalProperties have common members");
@@ -28158,7 +28214,7 @@ var require_parseJson = __commonJS({
         pos++;
       } else {
         if (!parseDigits(maxDigits)) {
-          errorMessage();
+          errorMessage2();
           return void 0;
         }
       }
@@ -28170,7 +28226,7 @@ var require_parseJson = __commonJS({
         numStr += ".";
         pos++;
         if (!parseDigits()) {
-          errorMessage();
+          errorMessage2();
           return void 0;
         }
       }
@@ -28182,7 +28238,7 @@ var require_parseJson = __commonJS({
           pos++;
         }
         if (!parseDigits()) {
-          errorMessage();
+          errorMessage2();
           return void 0;
         }
       }
@@ -28197,7 +28253,7 @@ var require_parseJson = __commonJS({
         }
         return digit;
       }
-      function errorMessage() {
+      function errorMessage2() {
         parseJsonNumber.position = pos;
         parseJsonNumber.message = pos < s.length ? `unexpected token ${s[pos]}` : "unexpected end";
       }
@@ -28239,7 +28295,7 @@ var require_parseJson = __commonJS({
               code <<= 4;
               c = s[pos];
               if (c === void 0) {
-                errorMessage("unexpected end");
+                errorMessage2("unexpected end");
                 return void 0;
               }
               c = c.toLowerCase();
@@ -28248,31 +28304,31 @@ var require_parseJson = __commonJS({
               } else if (c >= "0" && c <= "9") {
                 code += c.charCodeAt(0) - CODE_0;
               } else {
-                errorMessage(`unexpected token ${c}`);
+                errorMessage2(`unexpected token ${c}`);
                 return void 0;
               }
               pos++;
             }
             str += String.fromCharCode(code);
           } else {
-            errorMessage(`unexpected token ${c}`);
+            errorMessage2(`unexpected token ${c}`);
             return void 0;
           }
         } else if (c === void 0) {
-          errorMessage("unexpected end");
+          errorMessage2("unexpected end");
           return void 0;
         } else {
           if (c.charCodeAt(0) >= 32) {
             str += c;
           } else {
-            errorMessage(`unexpected token ${c}`);
+            errorMessage2(`unexpected token ${c}`);
             return void 0;
           }
         }
       }
       parseJsonString.position = pos;
       return str;
-      function errorMessage(msg) {
+      function errorMessage2(msg) {
         parseJsonString.position = pos;
         parseJsonString.message = msg;
       }
@@ -29945,55 +30001,55 @@ var require_fast_uri2 = __commonJS({
       }
       return uri;
     }
-    function resolve4(baseURI, relativeURI, options) {
+    function resolve5(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse3(baseURI, schemelessOptions), parse3(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative2, options, skipNormalization) {
+    function resolveComponent(base, relative3, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse3(serialize(base, options), options);
-        relative2 = parse3(serialize(relative2, options), options);
+        relative3 = parse3(serialize(relative3, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative2.scheme) {
-        target.scheme = relative2.scheme;
-        target.userinfo = relative2.userinfo;
-        target.host = relative2.host;
-        target.port = relative2.port;
-        target.path = removeDotSegments(relative2.path || "");
-        target.query = relative2.query;
+      if (!options.tolerant && relative3.scheme) {
+        target.scheme = relative3.scheme;
+        target.userinfo = relative3.userinfo;
+        target.host = relative3.host;
+        target.port = relative3.port;
+        target.path = removeDotSegments(relative3.path || "");
+        target.query = relative3.query;
       } else {
-        if (relative2.userinfo !== void 0 || relative2.host !== void 0 || relative2.port !== void 0) {
-          target.userinfo = relative2.userinfo;
-          target.host = relative2.host;
-          target.port = relative2.port;
-          target.path = removeDotSegments(relative2.path || "");
-          target.query = relative2.query;
+        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
+          target.userinfo = relative3.userinfo;
+          target.host = relative3.host;
+          target.port = relative3.port;
+          target.path = removeDotSegments(relative3.path || "");
+          target.query = relative3.query;
         } else {
-          if (!relative2.path) {
+          if (!relative3.path) {
             target.path = base.path;
-            if (relative2.query !== void 0) {
-              target.query = relative2.query;
+            if (relative3.query !== void 0) {
+              target.query = relative3.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative2.path[0] === "/") {
-              target.path = removeDotSegments(relative2.path);
+            if (relative3.path[0] === "/") {
+              target.path = removeDotSegments(relative3.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative2.path;
+                target.path = "/" + relative3.path;
               } else if (!base.path) {
-                target.path = relative2.path;
+                target.path = relative3.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative2.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative3.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative2.query;
+            target.query = relative3.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -30001,7 +30057,7 @@ var require_fast_uri2 = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative2.fragment;
+      target.fragment = relative3.fragment;
       return target;
     }
     function equal(uriA, uriB, options) {
@@ -30202,7 +30258,7 @@ var require_fast_uri2 = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve4,
+      resolve: resolve5,
       resolveComponent,
       equal,
       serialize,
@@ -32329,7 +32385,7 @@ ${contextFunctionCode}`,
         const funcName = context.functionsNamesBySchema.get(schema);
         return `json += ${funcName}(${input})`;
       }
-      const nullable2 = schema.nullable === true;
+      const nullable3 = schema.nullable === true;
       const schemaId = location.schemaId || "";
       const jsonPointer = location.jsonPointer || "";
       const fullPath = `${schemaId}#${jsonPointer}`;
@@ -32341,7 +32397,7 @@ ${contextFunctionCode}`,
       // ${schemaRef}
       function ${functionName} (input) {
         const obj = ${toJSON("input")}
-        if (obj === null) return ${nullable2 ? "JSON_STR_NULL" : "JSON_STR_EMPTY_OBJECT"}
+        if (obj === null) return ${nullable3 ? "JSON_STR_NULL" : "JSON_STR_EMPTY_OBJECT"}
         let json = ''
 
         ${buildInnerObject(context, location, "obj")}
@@ -32356,7 +32412,7 @@ ${contextFunctionCode}`,
       const code = `
     const ${objVar} = ${toJSON(input)}
     if (${objVar} === null) {
-      json += ${nullable2 ? "JSON_STR_NULL" : "JSON_STR_EMPTY_OBJECT"}
+      json += ${nullable3 ? "JSON_STR_NULL" : "JSON_STR_EMPTY_OBJECT"}
     } else {
       ${buildInnerObject(context, location, objVar)}
     }
@@ -32376,7 +32432,7 @@ ${contextFunctionCode}`,
         const funcName = context.functionsNamesBySchema.get(schema);
         return `json += ${funcName}(${input})`;
       }
-      const nullable2 = schema.nullable === true;
+      const nullable3 = schema.nullable === true;
       const schemaId = location.schemaId || "";
       const jsonPointer = location.jsonPointer || "";
       const fullPath = `${schemaId}#${jsonPointer}`;
@@ -32390,7 +32446,7 @@ ${contextFunctionCode}`,
       let json = ''
   `;
         functionCode += `
-    if (obj === null) return ${nullable2 ? "JSON_STR_NULL" : "JSON_STR_EMPTY_ARRAY"}
+    if (obj === null) return ${nullable3 ? "JSON_STR_NULL" : "JSON_STR_EMPTY_ARRAY"}
     if (!Array.isArray(obj)) {
       throw new TypeError(\`The value of '${schemaRef}' does not match schema definition.\`)
     }
@@ -32468,7 +32524,7 @@ ${contextFunctionCode}`,
       let inlinedCode = `
     const ${objVar} = ${input}
     if (${objVar} === null) {
-      json += ${nullable2 ? "JSON_STR_NULL" : "JSON_STR_EMPTY_ARRAY"}
+      json += ${nullable3 ? "JSON_STR_NULL" : "JSON_STR_EMPTY_ARRAY"}
     } else if (!Array.isArray(${objVar})) {
       throw new TypeError(\`The value of '${safeSchemaRef}' does not match schema definition.\`)
     } else {
@@ -32948,8 +33004,8 @@ ${contextFunctionCode}`,
       }
       let code = "";
       const type = schema.type;
-      const nullable2 = schema.nullable === true;
-      if (nullable2) {
+      const nullable3 = schema.nullable === true;
+      if (nullable3) {
         code += `
       if (${input} === null) {
         json += JSON_STR_NULL
@@ -32963,7 +33019,7 @@ ${contextFunctionCode}`,
       } else {
         code += buildSingleTypeSerializer(context, location, input);
       }
-      if (nullable2) {
+      if (nullable3) {
         code += `
       }
     `;
@@ -33044,9 +33100,9 @@ var require_fast_json_stringify_compiler = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/schema-controller.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/schema-controller.js
 var require_schema_controller = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/schema-controller.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/schema-controller.js"(exports, module) {
     "use strict";
     var { buildSchemas } = require_schemas();
     function buildSchemaController(parentSchemaCtrl, opts) {
@@ -35156,9 +35212,9 @@ var require_semver2 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/plugin-utils.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/plugin-utils.js
 var require_plugin_utils = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/plugin-utils.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/plugin-utils.js"(exports, module) {
     "use strict";
     var semver = require_semver2();
     var assert2 = __require("assert");
@@ -35290,9 +35346,9 @@ var require_plugin_utils = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/req-id-gen-factory.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/req-id-gen-factory.js
 var require_req_id_gen_factory = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/req-id-gen-factory.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/req-id-gen-factory.js"(exports, module) {
     "use strict";
     var { kGenReqId } = require_symbols2();
     function reqIdGenFactory(requestIdHeader, optGenReqId) {
@@ -37994,9 +38050,9 @@ var require_find_my_way = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/head-route.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/head-route.js
 var require_head_route = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/head-route.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/head-route.js"(exports, module) {
     "use strict";
     function headRouteOnSendHandler(req, reply, payload, done) {
       if (payload === void 0) {
@@ -38033,9 +38089,9 @@ var require_head_route = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/route.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/route.js
 var require_route = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/route.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/route.js"(exports, module) {
     "use strict";
     var FindMyWay = require_find_my_way();
     var Context = require_context();
@@ -38200,7 +38256,7 @@ var require_route = __commonJS({
       }
       function findRoute(options2) {
         const route2 = router.find(
-          options2.method,
+          options2.method?.toUpperCase() ?? "",
           options2.url || "",
           options2.constraints
         );
@@ -38585,9 +38641,9 @@ var require_route = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/four-oh-four.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/four-oh-four.js
 var require_four_oh_four = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/four-oh-four.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/four-oh-four.js"(exports, module) {
     "use strict";
     var FindMyWay = require_find_my_way();
     var Reply = require_reply();
@@ -38734,9 +38790,9 @@ var require_four_oh_four = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/plugin-override.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/plugin-override.js
 var require_plugin_override = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/lib/plugin-override.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/lib/plugin-override.js"(exports, module) {
     "use strict";
     var {
       kAvvioBoot,
@@ -39154,7 +39210,7 @@ var require_parse_url = __commonJS({
 var require_form_data = __commonJS({
   "../../node_modules/.pnpm/light-my-request@6.6.0/node_modules/light-my-request/lib/form-data.js"(exports, module) {
     "use strict";
-    var { randomUUID: randomUUID5 } = __require("crypto");
+    var { randomUUID: randomUUID9 } = __require("crypto");
     var { Readable } = __require("stream");
     var textEncoder;
     function isFormDataLike(payload) {
@@ -39162,7 +39218,7 @@ var require_form_data = __commonJS({
     }
     function formDataToStream(formdata) {
       textEncoder = textEncoder ?? new TextEncoder();
-      const boundary = `----formdata-${randomUUID5()}`;
+      const boundary = `----formdata-${randomUUID9()}`;
       const prefix = `--${boundary}\r
 Content-Disposition: form-data`;
       const escape2 = (str) => str.replace(/\n/g, "%0A").replace(/\r/g, "%0D").replace(/"/g, "%22");
@@ -40609,7 +40665,7 @@ var require_light_my_request = __commonJS({
     var assert2 = __require("assert");
     var Request = require_request2();
     var Response = require_response();
-    var errorMessage = "The dispatch function has already been invoked";
+    var errorMessage2 = "The dispatch function has already been invoked";
     var optsValidator = require_config_validator2();
     function inject(dispatchFunc, options, callback) {
       if (callback === void 0) {
@@ -40665,9 +40721,9 @@ var require_light_my_request = __commonJS({
         const res = new Response(req, callback);
         return makeRequest(dispatchFunc, server, req, res);
       } else {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           const req = new RequestConstructor(options);
-          const res = new Response(req, resolve4, reject);
+          const res = new Response(req, resolve5, reject);
           makeRequest(dispatchFunc, server, req, res);
         });
       }
@@ -40702,7 +40758,7 @@ var require_light_my_request = __commonJS({
     httpMethods.forEach((method) => {
       Chain.prototype[method] = function(url2) {
         if (this._hasInvoked === true || this._promise) {
-          throw new Error(errorMessage);
+          throw new Error(errorMessage2);
         }
         this.option.url = url2;
         this.option.method = method.toUpperCase();
@@ -40719,7 +40775,7 @@ var require_light_my_request = __commonJS({
     chainMethods.forEach((method) => {
       Chain.prototype[method] = function(value) {
         if (this._hasInvoked === true || this._promise) {
-          throw new Error(errorMessage);
+          throw new Error(errorMessage2);
         }
         this.option[method] = value;
         return this;
@@ -40727,7 +40783,7 @@ var require_light_my_request = __commonJS({
     });
     Chain.prototype.end = function(callback) {
       if (this._hasInvoked === true || this._promise) {
-        throw new Error(errorMessage);
+        throw new Error(errorMessage2);
       }
       this._hasInvoked = true;
       if (typeof callback === "function") {
@@ -40742,7 +40798,7 @@ var require_light_my_request = __commonJS({
       Chain.prototype[method] = function(...args) {
         if (!this._promise) {
           if (this._hasInvoked === true) {
-            throw new Error(errorMessage);
+            throw new Error(errorMessage2);
           }
           this._hasInvoked = true;
           this._promise = doInject(this.dispatch, this.option);
@@ -40760,11 +40816,11 @@ var require_light_my_request = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/fastify.js
+// ../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/fastify.js
 var require_fastify = __commonJS({
-  "../../node_modules/.pnpm/fastify@5.10.0/node_modules/fastify/fastify.js"(exports, module) {
+  "../../node_modules/.pnpm/fastify@5.11.0/node_modules/fastify/fastify.js"(exports, module) {
     "use strict";
-    var VERSION = "5.10.0";
+    var VERSION = "5.11.0";
     var Avvio = require_boot();
     var http = __require("http");
     var diagnostics = __require("diagnostics_channel");
@@ -40886,7 +40942,9 @@ var require_fastify = __commonJS({
             "OPTIONS",
             "PATCH",
             "PUT",
-            "POST"
+            "POST",
+            // RFC 10008
+            "QUERY"
           ])
         },
         [kOptions]: options,
@@ -40942,6 +41000,9 @@ var require_fastify = __commonJS({
         },
         options: function _options(url2, options2, handler) {
           return router.prepareRoute.call(this, { method: "OPTIONS", url: url2, options: options2, handler });
+        },
+        query: function _query(url2, options2, handler) {
+          return router.prepareRoute.call(this, { method: "QUERY", url: url2, options: options2, handler });
         },
         all: function _all(url2, options2, handler) {
           return router.prepareRoute.call(this, { method: this.supportedMethods, url: url2, options: options2, handler });
@@ -41587,9 +41648,9 @@ ${body}`);
 });
 
 // src/cli.ts
+import { execFile as execFile12 } from "child_process";
 import { access } from "fs/promises";
-import { execFile as execFile9 } from "child_process";
-import { promisify as promisify9 } from "util";
+import { promisify as promisify12 } from "util";
 
 // ../../node_modules/.pnpm/zod@4.4.3/node_modules/zod/v4/classic/external.js
 var external_exports = {};
@@ -56196,22 +56257,60 @@ var InteractionSchema = external_exports.discriminatedUnion("type", [
   TopologyInteractionSchema
 ]);
 var KnowledgeCheckSchema = external_exports.object({
-  prompt: external_exports.string(),
-  expectedObservation: external_exports.string()
+  prompt: external_exports.string().min(1),
+  expectedObservation: external_exports.string().min(1)
 });
-var LessonSchema = external_exports.object({
+var PageKindSchema = external_exports.enum([
+  "orientation",
+  "concept",
+  "walkthrough",
+  "demo",
+  "exercise",
+  "recap"
+]);
+var ExerciseSchema = external_exports.object({
+  mode: external_exports.enum(["observe", "trace", "diagnose", "patch", "design"]),
+  task: external_exports.string().min(1),
+  allowedPaths: external_exports.array(external_exports.string()).default([]),
+  hints: external_exports.array(external_exports.string().min(1)).default([]),
+  verificationRecipe: RunRecipeSchema.optional(),
+  formatRecipe: RunRecipeSchema.optional(),
+  expectedObservation: external_exports.string().min(1),
+  solutionExplanation: external_exports.string().optional(),
+  reset: external_exports.enum(["rerun", "fresh-worktree"]).default("fresh-worktree")
+});
+var PageSchema = external_exports.object({
   id: external_exports.string().min(1),
-  objectiveId: external_exports.string().min(1),
+  moduleId: external_exports.string().min(1),
+  kind: PageKindSchema,
   title: external_exports.string().min(1),
   objective: external_exports.string().min(1),
-  estimatedMinutes: external_exports.number().int().min(1).max(30).default(5),
+  estimatedMinutes: external_exports.number().int().min(1).max(10).default(3),
   narrative: external_exports.string().min(1),
   status: external_exports.enum(["draft", "ready", "blocked", "stale"]).default("draft"),
   prerequisites: external_exports.array(external_exports.string()).default([]),
   evidence: external_exports.array(EvidenceRefSchema).default([]),
   interactions: external_exports.array(InteractionSchema).min(1),
   knowledgeCheck: KnowledgeCheckSchema.optional(),
+  exercise: ExerciseSchema.optional(),
   references: external_exports.array(external_exports.object({ title: external_exports.string(), url: external_exports.url() })).max(3).default([])
+});
+var ModuleGapSchema = external_exports.object({
+  area: external_exports.string().min(1),
+  status: external_exports.enum(["not-applicable", "blocked", "omitted"]),
+  reason: external_exports.string().min(1)
+});
+var ModuleSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  title: external_exports.string().min(1),
+  outcome: external_exports.string().min(1),
+  relevance: external_exports.string().min(1),
+  estimatedMinutes: external_exports.number().int().positive(),
+  prerequisites: external_exports.array(external_exports.string()).default([]),
+  pageIds: external_exports.array(external_exports.string()).default([]),
+  surfaces: external_exports.array(external_exports.string()).default([]),
+  gaps: external_exports.array(ModuleGapSchema).default([]),
+  status: external_exports.enum(["planned", "draft", "ready", "blocked", "stale"]).default("planned")
 });
 var TrackSchema = external_exports.object({
   id: external_exports.string().min(1),
@@ -56219,20 +56318,32 @@ var TrackSchema = external_exports.object({
   summary: external_exports.string(),
   kind: external_exports.enum(["core", "selected", "suggested"]),
   priority: external_exports.number().int().nonnegative(),
-  lessonIds: external_exports.array(external_exports.string())
+  moduleIds: external_exports.array(external_exports.string())
+});
+var CoverageEntrySchema = external_exports.object({
+  capability: external_exports.string().min(1),
+  status: external_exports.enum(["covered", "not-applicable", "blocked", "omitted"]),
+  moduleIds: external_exports.array(external_exports.string()).default([]),
+  reason: external_exports.string().optional()
+});
+var ProjectAnchorSchema = external_exports.object({
+  ref: external_exports.string().min(1),
+  commit: external_exports.string().regex(/^[0-9a-f]{40}$/)
 });
 var TourSnapshotSchema = external_exports.object({
-  schemaVersion: external_exports.literal(1),
+  schemaVersion: external_exports.literal(2),
   id: external_exports.string().min(1),
   projectName: external_exports.string().min(1),
   repositoryRoot: external_exports.string().min(1),
-  head: external_exports.string().min(1),
-  branch: external_exports.string().min(1),
+  anchor: ProjectAnchorSchema,
   generatedAt: external_exports.string(),
   generator: external_exports.string().default("tourguide"),
-  status: external_exports.enum(["draft", "published", "partial"]).default("draft"),
+  promptVersion: external_exports.number().int().positive().default(2),
+  status: external_exports.enum(["draft", "partial", "published"]).default("draft"),
   tracks: external_exports.array(TrackSchema),
-  lessons: external_exports.array(LessonSchema),
+  modules: external_exports.array(ModuleSchema),
+  pages: external_exports.array(PageSchema),
+  coverage: external_exports.array(CoverageEntrySchema).default([]),
   dependencies: external_exports.record(external_exports.string(), external_exports.array(external_exports.string())).default({})
 });
 var AreaSchema = external_exports.object({
@@ -56247,8 +56358,10 @@ var ProjectInventorySchema = external_exports.object({
   name: external_exports.string(),
   head: external_exports.string(),
   branch: external_exports.string(),
+  ref: external_exports.string(),
   trackedFileCount: external_exports.number().int().nonnegative(),
   trackedFiles: external_exports.array(external_exports.string()),
+  excludedFiles: external_exports.array(external_exports.string()).default([]),
   dirtyFiles: external_exports.array(external_exports.string()),
   manifests: external_exports.array(external_exports.string()),
   commands: external_exports.record(external_exports.string(), external_exports.string()),
@@ -56257,19 +56370,178 @@ var ProjectInventorySchema = external_exports.object({
 var PreferencesSchema = external_exports.object({
   priorities: external_exports.array(external_exports.string()).default([]),
   goals: external_exports.array(external_exports.string()).default([]),
-  allowCodexAdapter: external_exports.boolean().default(false)
+  allowCodexAdapter: external_exports.boolean().default(true)
+});
+var PageProgressSchema = external_exports.object({
+  viewed: external_exports.boolean().default(false),
+  demonstrated: external_exports.boolean().default(false),
+  exerciseAttempted: external_exports.boolean().default(false),
+  completed: external_exports.boolean().default(false),
+  revisit: external_exports.boolean().default(false),
+  note: external_exports.string().optional(),
+  updatedAt: external_exports.string()
 });
 var ProgressSchema = external_exports.object({
-  lessons: external_exports.record(
-    external_exports.string(),
-    external_exports.object({
-      viewed: external_exports.boolean().default(false),
-      experimented: external_exports.boolean().default(false),
-      revisit: external_exports.boolean().default(false),
-      note: external_exports.string().optional(),
-      updatedAt: external_exports.string()
-    })
-  ).default({})
+  schemaVersion: external_exports.literal(2).default(2),
+  pages: external_exports.record(external_exports.string(), PageProgressSchema).default({})
+});
+var GenerationPhaseSchema = external_exports.enum([
+  "preparing",
+  "planning",
+  "drafting",
+  "validating",
+  "publishing",
+  "complete"
+]);
+var GenerationJobSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  action: external_exports.enum(["create", "refresh", "deepen"]).default("create"),
+  status: external_exports.enum(["queued", "running", "cancelled", "failed", "partial", "complete"]),
+  phase: GenerationPhaseSchema,
+  anchor: ProjectAnchorSchema,
+  goal: external_exports.string().min(1),
+  priorities: external_exports.array(external_exports.string()).default([]),
+  model: external_exports.string().optional(),
+  snapshotId: external_exports.string().optional(),
+  threadId: external_exports.string().optional(),
+  codexVersion: external_exports.string().optional(),
+  plannedModuleIds: external_exports.array(external_exports.string()).default([]),
+  completedModuleIds: external_exports.array(external_exports.string()).default([]),
+  currentModuleId: external_exports.string().optional(),
+  message: external_exports.string().default(""),
+  errorCode: external_exports.enum(["auth", "usage", "engine", "validation", "cancelled"]).optional(),
+  usage: external_exports.object({
+    inputTokens: external_exports.number().int().nonnegative().default(0),
+    cachedInputTokens: external_exports.number().int().nonnegative().default(0),
+    outputTokens: external_exports.number().int().nonnegative().default(0)
+  }).default({ inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 }),
+  startedAt: external_exports.string(),
+  updatedAt: external_exports.string()
+});
+var CodexStatusSchema = external_exports.object({
+  status: external_exports.enum(["ready", "missing", "unauthenticated", "unsupported", "error"]),
+  version: external_exports.string().optional(),
+  auth: external_exports.string().optional(),
+  message: external_exports.string()
+});
+var PlannedPageSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  kind: PageKindSchema,
+  title: external_exports.string().min(1),
+  objective: external_exports.string().min(1),
+  interactionIntent: external_exports.string().min(1)
+});
+var PlannedModuleSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  trackId: external_exports.string().min(1),
+  title: external_exports.string().min(1),
+  outcome: external_exports.string().min(1),
+  relevance: external_exports.string().min(1),
+  prerequisites: external_exports.array(external_exports.string()).default([]),
+  surfaces: external_exports.array(external_exports.string()).default([]),
+  gaps: external_exports.array(ModuleGapSchema).default([]),
+  pages: external_exports.array(PlannedPageSchema).min(1)
+});
+var CurriculumPlanSchema = external_exports.object({
+  projectName: external_exports.string().min(1),
+  summary: external_exports.string().min(1),
+  tracks: external_exports.array(TrackSchema).min(1),
+  modules: external_exports.array(PlannedModuleSchema).min(1),
+  coverage: external_exports.array(CoverageEntrySchema).min(1)
+});
+var GeneratedEnvironmentEntrySchema = external_exports.object({
+  name: external_exports.string().min(1),
+  value: external_exports.string()
+});
+var GeneratedRunRecipeSchema = RunRecipeSchema.omit({ env: true }).extend({
+  env: external_exports.array(GeneratedEnvironmentEntrySchema).default([])
+});
+var GeneratedInteractionSchema = external_exports.discriminatedUnion("type", [
+  SourceInteractionSchema,
+  external_exports.object({ type: external_exports.literal("command"), recipe: GeneratedRunRecipeSchema }),
+  BrowserInteractionSchema,
+  DataInteractionSchema.omit({ rows: true }).extend({ rows: external_exports.array(external_exports.array(external_exports.string())) }),
+  TopologyInteractionSchema
+]);
+var GeneratedExerciseSchema = ExerciseSchema.omit({ verificationRecipe: true, formatRecipe: true }).extend({
+  verificationRecipe: GeneratedRunRecipeSchema.optional(),
+  formatRecipe: GeneratedRunRecipeSchema.optional()
+});
+var GeneratedEvidenceSchema = EvidenceRefSchema.omit({
+  revision: true,
+  contentHash: true,
+  validated: true
+}).extend({
+  validated: external_exports.boolean().optional()
+});
+var GeneratedPageSchema = PageSchema.omit({
+  moduleId: true,
+  evidence: true,
+  status: true,
+  interactions: true,
+  exercise: true
+}).extend({
+  moduleId: external_exports.string().optional(),
+  evidence: external_exports.array(GeneratedEvidenceSchema).default([]),
+  interactions: external_exports.array(GeneratedInteractionSchema).min(1),
+  exercise: GeneratedExerciseSchema.optional()
+});
+var GeneratedModuleSchema = external_exports.object({
+  moduleId: external_exports.string().min(1),
+  pages: external_exports.array(GeneratedPageSchema).min(1)
+});
+var GenerationEventSchema = external_exports.object({
+  id: external_exports.number().int().nonnegative(),
+  jobId: external_exports.string(),
+  type: external_exports.enum(["status", "module-ready", "message", "error", "complete"]),
+  message: external_exports.string(),
+  moduleId: external_exports.string().optional(),
+  createdAt: external_exports.string()
+});
+var DiagnosticErrorSchema = external_exports.object({
+  name: external_exports.string(),
+  message: external_exports.string(),
+  stack: external_exports.string().optional(),
+  details: external_exports.record(external_exports.string(), external_exports.unknown()).default({})
+});
+var DiagnosticReportSchema = external_exports.object({
+  schemaVersion: external_exports.literal(1).default(1),
+  id: external_exports.string().min(1),
+  createdAt: external_exports.string(),
+  trigger: external_exports.enum(["generation", "server", "process", "browser", "startup", "manual", "interrupted"]),
+  summary: external_exports.string().min(1),
+  repository: external_exports.object({
+    root: external_exports.string(),
+    name: external_exports.string().optional(),
+    ref: external_exports.string().optional(),
+    commit: external_exports.string().optional(),
+    dirtyFiles: external_exports.array(external_exports.string()).default([])
+  }),
+  runtime: external_exports.object({
+    tourguideVersion: external_exports.string(),
+    node: external_exports.string(),
+    platform: external_exports.string(),
+    arch: external_exports.string()
+  }),
+  codex: external_exports.object({
+    status: external_exports.string(),
+    version: external_exports.string().optional()
+  }).optional(),
+  generation: GenerationJobSchema.optional(),
+  recentEvents: external_exports.array(GenerationEventSchema).default([]),
+  error: DiagnosticErrorSchema.optional(),
+  context: external_exports.record(external_exports.string(), external_exports.unknown()).default({})
+});
+var ExerciseSessionSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  snapshotId: external_exports.string().min(1),
+  pageId: external_exports.string().min(1),
+  commit: external_exports.string().regex(/^[0-9a-f]{40}$/),
+  workspace: external_exports.string().min(1),
+  allowedPaths: external_exports.array(external_exports.string()),
+  createdAt: external_exports.string(),
+  updatedAt: external_exports.string(),
+  expiresAt: external_exports.string()
 });
 
 // ../core/src/git.ts
@@ -56306,6 +56578,28 @@ async function git(root, args) {
   });
   return stdout;
 }
+async function resolveRevision(root, ref = "HEAD") {
+  const output = await git(root, ["rev-parse", "--verify", "--end-of-options", `${ref}^{commit}`]);
+  return output.trim();
+}
+async function listRepositoryRefs(root) {
+  const output = await git(root, [
+    "for-each-ref",
+    "--format=%(refname)%09%(objectname)",
+    "refs/heads",
+    "refs/tags",
+    "refs/remotes"
+  ]);
+  const refs = [];
+  for (const line of output.split("\n")) {
+    const [name = "", object3 = ""] = line.split("	");
+    if (!name || !object3) continue;
+    const kind = name.startsWith("refs/heads/") ? "branch" : name.startsWith("refs/tags/") ? "tag" : "remote";
+    const commit = await resolveRevision(root, name).catch(() => object3);
+    refs.push({ name, commit, kind });
+  }
+  return refs.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+}
 async function changedFilesBetween(root, from, to = "HEAD") {
   if (from === to) return [];
   const output = await git(root, ["diff", "--name-only", "-z", `${from}..${to}`]);
@@ -56314,9 +56608,6 @@ async function changedFilesBetween(root, from, to = "HEAD") {
 async function findRepositoryRoot(start = process.cwd()) {
   const output = await git(resolve(start), ["rev-parse", "--show-toplevel"]);
   return output.trim();
-}
-async function readHeadFile(root, path2) {
-  return git(root, ["show", `HEAD:${path2}`]);
 }
 async function readRevisionFile(root, revision, path2) {
   return git(root, ["show", `${revision}:${path2}`]);
@@ -56346,24 +56637,23 @@ function detectAreas(files) {
     }];
   });
 }
-async function rootCommands(root, files) {
+async function rootCommands(root, revision, files) {
   if (!files.includes("package.json")) return {};
   try {
-    const pkg = JSON.parse(await readHeadFile(root, "package.json"));
+    const pkg = JSON.parse(await readRevisionFile(root, revision, "package.json"));
     return pkg.scripts ?? {};
   } catch {
     return {};
   }
 }
-async function inspectRepository(start = process.cwd()) {
+async function inspectRepositoryAt(start = process.cwd(), requestedRef = "HEAD") {
   const root = await findRepositoryRoot(start);
-  await git(root, ["rev-parse", "--verify", "HEAD"]).catch(() => {
+  const revision = await resolveRevision(root, requestedRef).catch(() => {
     throw new Error(`Tourguide requires at least one commit in ${root}. Commit the repository's initial state and try again.`);
   });
-  const [head, branch, fileOutput, statusOutput] = await Promise.all([
-    git(root, ["rev-parse", "HEAD"]),
+  const [branch, fileOutput, statusOutput] = await Promise.all([
     git(root, ["branch", "--show-current"]),
-    git(root, ["ls-files", "-z"]),
+    git(root, ["ls-tree", "-r", "--name-only", "-z", revision]),
     git(root, ["status", "--porcelain=v1", "-z"])
   ]);
   const trackedFiles = fileOutput.split("\0").filter(Boolean);
@@ -56373,53 +56663,449 @@ async function inspectRepository(start = process.cwd()) {
     schemaVersion: 1,
     root,
     name: basename(root),
-    head: head.trim(),
+    head: revision,
     branch: branch.trim() || "detached",
+    ref: requestedRef,
     trackedFileCount: trackedFiles.length,
     trackedFiles,
+    excludedFiles: [],
     dirtyFiles,
     manifests,
-    commands: await rootCommands(root, trackedFiles),
+    commands: await rootCommands(root, revision, trackedFiles),
     areas: detectAreas(trackedFiles)
   });
 }
 
 // ../core/src/freshness.ts
 async function assessFreshness(root, snapshot, currentHead) {
+  const authoredHead = snapshot.anchor.commit;
   let historyAvailable = true;
-  const changedFiles = snapshot.head === currentHead ? [] : await changedFilesBetween(root, snapshot.head, currentHead).catch(() => {
+  const changedFiles = authoredHead === currentHead ? [] : await changedFilesBetween(root, authoredHead, currentHead).catch(() => {
     historyAvailable = false;
     return [];
   });
   const changed = new Set(changedFiles);
   const stale = new Set(
-    snapshot.lessons.filter((lesson) => lesson.evidence.some((evidence) => evidence.path && changed.has(evidence.path))).map((lesson) => lesson.id)
+    snapshot.pages.filter((page) => page.evidence.some((evidence) => evidence.path && changed.has(evidence.path))).map((page) => page.id)
   );
-  if (!historyAvailable) for (const lesson of snapshot.lessons) stale.add(lesson.id);
+  if (!historyAvailable) for (const page of snapshot.pages) stale.add(page.id);
   let added = true;
   while (added) {
     added = false;
-    for (const lesson of snapshot.lessons) {
-      const dependencies = /* @__PURE__ */ new Set([...snapshot.dependencies[lesson.id] ?? [], ...lesson.prerequisites]);
-      if (!stale.has(lesson.id) && [...dependencies].some((id) => stale.has(id))) {
-        stale.add(lesson.id);
+    for (const page of snapshot.pages) {
+      const dependencies = /* @__PURE__ */ new Set([...snapshot.dependencies[page.id] ?? [], ...page.prerequisites]);
+      if (!stale.has(page.id) && [...dependencies].some((id) => stale.has(id))) {
+        stale.add(page.id);
         added = true;
       }
     }
   }
+  const staleModuleIds = snapshot.modules.filter((module) => module.pageIds.some((id) => stale.has(id))).map((module) => module.id);
   return {
     currentHead,
-    authoredHead: snapshot.head,
+    authoredHead,
     changedFiles,
+    stalePageIds: [...stale],
+    staleModuleIds,
     staleLessonIds: [...stale],
-    fresh: snapshot.head === currentHead,
+    fresh: authoredHead === currentHead,
     historyAvailable,
-    ...!historyAvailable ? { reason: "The authored commit is unavailable or cannot be compared; review every lesson." } : {}
+    ...!historyAvailable ? { reason: "The authored commit is unavailable or cannot be compared; review every page." } : {}
   };
 }
 
-// ../core/src/store.ts
+// ../core/src/migration.ts
 import { randomUUID } from "crypto";
+var LegacyLessonSchema = external_exports.object({
+  id: external_exports.string(),
+  objectiveId: external_exports.string(),
+  title: external_exports.string(),
+  objective: external_exports.string(),
+  estimatedMinutes: external_exports.number().int().positive().default(5),
+  narrative: external_exports.string(),
+  status: external_exports.enum(["draft", "ready", "blocked", "stale"]).default("draft"),
+  prerequisites: external_exports.array(external_exports.string()).default([]),
+  evidence: external_exports.array(EvidenceRefSchema).default([]),
+  interactions: external_exports.array(InteractionSchema).min(1),
+  knowledgeCheck: KnowledgeCheckSchema.optional(),
+  references: external_exports.array(external_exports.object({ title: external_exports.string(), url: external_exports.url() })).default([])
+});
+var LegacySnapshotSchema = external_exports.object({
+  schemaVersion: external_exports.literal(1),
+  id: external_exports.string(),
+  projectName: external_exports.string(),
+  repositoryRoot: external_exports.string(),
+  head: external_exports.string().regex(/^[0-9a-f]{40}$/),
+  branch: external_exports.string(),
+  generatedAt: external_exports.string(),
+  generator: external_exports.string().default("tourguide"),
+  status: external_exports.enum(["draft", "published", "partial"]).default("draft"),
+  tracks: external_exports.array(external_exports.object({
+    id: external_exports.string(),
+    title: external_exports.string(),
+    summary: external_exports.string(),
+    kind: external_exports.enum(["core", "selected", "suggested"]),
+    priority: external_exports.number().int().nonnegative(),
+    lessonIds: external_exports.array(external_exports.string())
+  })),
+  lessons: external_exports.array(LegacyLessonSchema),
+  dependencies: external_exports.record(external_exports.string(), external_exports.array(external_exports.string())).default({})
+});
+var LegacyProgressSchema = external_exports.object({
+  lessons: external_exports.record(external_exports.string(), external_exports.object({
+    viewed: external_exports.boolean().default(false),
+    experimented: external_exports.boolean().default(false),
+    revisit: external_exports.boolean().default(false),
+    note: external_exports.string().optional(),
+    updatedAt: external_exports.string()
+  })).default({})
+});
+function pageKind(title, interactions) {
+  if (interactions.some((interaction) => interaction.type === "command")) return "demo";
+  if (interactions.some((interaction) => interaction.type === "data" || interaction.type === "topology")) return "orientation";
+  if (/orient|map|overview/i.test(title)) return "orientation";
+  return "concept";
+}
+function parseSnapshot(value) {
+  const current = TourSnapshotSchema.safeParse(value);
+  if (current.success) return { snapshot: current.data, migrated: false };
+  const legacy = LegacySnapshotSchema.parse(value);
+  const modules = legacy.tracks.map((track) => {
+    const moduleId = `${track.id}-module`;
+    const lessons = track.lessonIds.map((id) => legacy.lessons.find((lesson) => lesson.id === id)).filter((lesson) => Boolean(lesson));
+    return {
+      id: moduleId,
+      title: track.title,
+      outcome: track.summary || `Understand ${track.title}.`,
+      relevance: track.summary || "Migrated from a Tourguide v1 track.",
+      estimatedMinutes: lessons.reduce((total, lesson) => total + lesson.estimatedMinutes, 0) || 1,
+      prerequisites: [],
+      pageIds: lessons.map((lesson) => lesson.id),
+      surfaces: [...new Set(lessons.flatMap((lesson) => lesson.evidence.flatMap((evidence) => evidence.path ? [evidence.path] : [])))],
+      gaps: [
+        ...!lessons.some((lesson) => pageKind(lesson.title, lesson.interactions) === "demo") ? [{
+          area: "demonstration",
+          status: "omitted",
+          reason: "The v1 track did not record a demonstration page."
+        }] : [],
+        {
+          area: "synthesis exercise",
+          status: "omitted",
+          reason: "Tourguide v1 did not store exercise metadata."
+        }
+      ],
+      status: lessons.every((lesson) => lesson.status === "ready") ? "ready" : "draft"
+    };
+  });
+  const moduleByLesson = /* @__PURE__ */ new Map();
+  legacy.tracks.forEach((track) => track.lessonIds.forEach((lessonId) => moduleByLesson.set(lessonId, `${track.id}-module`)));
+  return {
+    migrated: true,
+    snapshot: TourSnapshotSchema.parse({
+      schemaVersion: 2,
+      id: legacy.id || randomUUID(),
+      projectName: legacy.projectName,
+      repositoryRoot: legacy.repositoryRoot,
+      anchor: { ref: legacy.branch || legacy.head, commit: legacy.head },
+      generatedAt: legacy.generatedAt,
+      generator: `${legacy.generator}-v1-migration`,
+      promptVersion: 2,
+      status: legacy.status,
+      tracks: legacy.tracks.map((track) => ({
+        id: track.id,
+        title: track.title,
+        summary: track.summary,
+        kind: track.kind,
+        priority: track.priority,
+        moduleIds: [`${track.id}-module`]
+      })),
+      modules,
+      pages: legacy.lessons.map((lesson) => ({
+        id: lesson.id,
+        moduleId: moduleByLesson.get(lesson.id) ?? modules[0]?.id ?? "migrated-module",
+        kind: pageKind(lesson.title, lesson.interactions),
+        title: lesson.title,
+        objective: lesson.objective,
+        estimatedMinutes: Math.min(10, lesson.estimatedMinutes),
+        narrative: lesson.narrative,
+        status: lesson.status,
+        prerequisites: lesson.prerequisites,
+        evidence: lesson.evidence,
+        interactions: lesson.interactions,
+        knowledgeCheck: lesson.knowledgeCheck,
+        references: lesson.references.slice(0, 3)
+      })),
+      coverage: [
+        {
+          capability: "orientation",
+          status: "covered",
+          moduleIds: modules[0] ? [modules[0].id] : []
+        },
+        ...[
+          "setup",
+          "run",
+          "architecture",
+          "data and state",
+          "test",
+          "debug",
+          "change workflow",
+          "delivery and operations"
+        ].map((capability) => ({
+          capability,
+          status: "omitted",
+          moduleIds: [],
+          reason: "The migrated v1 snapshot did not record explicit breadth coverage."
+        })),
+        ...legacy.tracks.map((track) => ({
+          capability: `legacy track: ${track.title}`,
+          status: "covered",
+          moduleIds: [`${track.id}-module`]
+        }))
+      ],
+      dependencies: legacy.dependencies
+    })
+  };
+}
+function parseProgress(value) {
+  const looksCurrent = Boolean(value && typeof value === "object" && (value.schemaVersion === 2 || "pages" in value));
+  const current = looksCurrent ? ProgressSchema.safeParse(value) : void 0;
+  if (current?.success) return { progress: current.data, migrated: false };
+  const legacy = LegacyProgressSchema.parse(value ?? {});
+  return {
+    migrated: true,
+    progress: ProgressSchema.parse({
+      schemaVersion: 2,
+      pages: Object.fromEntries(Object.entries(legacy.lessons).map(([id, state]) => [id, {
+        viewed: state.viewed,
+        demonstrated: state.experimented,
+        exerciseAttempted: state.experimented,
+        completed: false,
+        revisit: state.revisit,
+        note: state.note,
+        updatedAt: state.updatedAt
+      }]))
+    })
+  };
+}
+function parsePreferences(value) {
+  return PreferencesSchema.parse(value ?? {});
+}
+
+// ../core/src/validation.ts
+function cyclic(ids, dependencies) {
+  const visiting = /* @__PURE__ */ new Set();
+  const visited = /* @__PURE__ */ new Set();
+  const visit = (id) => {
+    if (visiting.has(id)) return true;
+    if (visited.has(id)) return false;
+    visiting.add(id);
+    const found = (dependencies[id] ?? []).some(visit);
+    visiting.delete(id);
+    visited.add(id);
+    return found;
+  };
+  return ids.some(visit);
+}
+function validateExercise(page, errors) {
+  if (page.kind === "exercise" && !page.exercise) errors.push(`Exercise page ${page.id} needs exercise metadata.`);
+  if (page.exercise && page.kind !== "exercise") errors.push(`Non-exercise page ${page.id} cannot contain exercise metadata.`);
+  if (!page.exercise) return;
+  if (page.exercise.hints.length === 0) errors.push(`Exercise ${page.id} needs at least one hint.`);
+  if (page.exercise.mode === "patch" && page.exercise.allowedPaths.length === 0) {
+    errors.push(`Patch exercise ${page.id} needs at least one allowed path.`);
+  }
+  if (page.exercise.mode === "patch" && !page.exercise.verificationRecipe) {
+    errors.push(`Patch exercise ${page.id} needs a verification recipe.`);
+  }
+  for (const recipe of [page.exercise.verificationRecipe, page.exercise.formatRecipe].filter(Boolean)) {
+    for (const path2 of recipe.capabilities.writes) {
+      if (!page.exercise.allowedPaths.some((allowed) => allowed === path2 || allowed.endsWith("/**") && path2.startsWith(allowed.slice(0, -3)))) {
+        errors.push(`Exercise recipe ${recipe.id} writes outside the allowlist: ${path2}.`);
+      }
+    }
+  }
+  for (const interaction of page.interactions) {
+    if (interaction.type === "source" && interaction.editable && !page.exercise.allowedPaths.includes(interaction.path)) {
+      errors.push(`Editable source ${interaction.path} in ${page.id} must be an allowed exercise path.`);
+    }
+  }
+}
+function validateLineRange(label, lineStart, lineEnd, maximum, errors) {
+  if (lineStart !== void 0 && lineStart > maximum) errors.push(`${label} starts after the end of its file (${maximum} lines).`);
+  if (lineEnd !== void 0 && lineEnd > maximum) errors.push(`${label} ends after the end of its file (${maximum} lines).`);
+  if (lineStart !== void 0 && lineEnd !== void 0 && lineStart > lineEnd) errors.push(`${label} has a reversed line range.`);
+}
+async function validateSnapshot(snapshot, root, options = {}) {
+  const errors = [];
+  const warnings = [];
+  const moduleIds = new Set(snapshot.modules.map((module) => module.id));
+  const pageIds = new Set(snapshot.pages.map((page) => page.id));
+  const moduleRoute = snapshot.tracks.flatMap((track) => track.moduleIds);
+  const modulePosition = new Map(moduleRoute.map((id, index) => [id, index]));
+  const pageRoute = moduleRoute.flatMap((id) => snapshot.modules.find((module) => module.id === id)?.pageIds ?? []);
+  const pagePosition = new Map(pageRoute.map((id, index) => [id, index]));
+  if (snapshot.tracks.length === 0) errors.push("Snapshot has no tracks.");
+  if (snapshot.modules.length === 0) errors.push("Snapshot has no modules.");
+  if (moduleIds.size !== snapshot.modules.length) errors.push("Module IDs must be unique.");
+  if (pageIds.size !== snapshot.pages.length) errors.push("Page IDs must be unique.");
+  if (new Set(snapshot.tracks.map((track) => track.id)).size !== snapshot.tracks.length) errors.push("Track IDs must be unique.");
+  if (new Set(snapshot.tracks.map((track) => track.priority)).size !== snapshot.tracks.length) errors.push("Track priorities must be unique.");
+  if (snapshot.tracks[0]?.kind !== "core" || snapshot.tracks[0]?.priority !== 0) errors.push("The first track must be core at priority 0.");
+  if (snapshot.tracks.some((track, index) => index > 0 && track.priority <= snapshot.tracks[index - 1].priority)) {
+    errors.push("Tracks must be ordered by ascending priority.");
+  }
+  const moduleAssignments = /* @__PURE__ */ new Map();
+  for (const track of snapshot.tracks) {
+    for (const id of track.moduleIds) {
+      if (!moduleIds.has(id)) errors.push(`Track ${track.id} references missing module ${id}.`);
+      moduleAssignments.set(id, (moduleAssignments.get(id) ?? 0) + 1);
+    }
+  }
+  const pageAssignments = /* @__PURE__ */ new Map();
+  for (const module of snapshot.modules) {
+    if (moduleAssignments.get(module.id) !== 1) errors.push(`Module ${module.id} must belong to exactly one track.`);
+    for (const prerequisite of module.prerequisites) {
+      if (!moduleIds.has(prerequisite)) errors.push(`Module ${module.id} has missing prerequisite ${prerequisite}.`);
+      if (prerequisite === module.id) errors.push(`Module ${module.id} cannot depend on itself.`);
+      if ((modulePosition.get(prerequisite) ?? -1) >= (modulePosition.get(module.id) ?? Number.MAX_SAFE_INTEGER)) {
+        errors.push(`Module prerequisite ${prerequisite} must appear before ${module.id}.`);
+      }
+    }
+    for (const id of module.pageIds) {
+      if (!pageIds.has(id)) {
+        if (!options.partial || module.status !== "planned") {
+          errors.push(`Module ${module.id} references missing page ${id}.`);
+        }
+      } else {
+        pageAssignments.set(id, (pageAssignments.get(id) ?? 0) + 1);
+      }
+    }
+    const pages = module.pageIds.map((id) => snapshot.pages.find((page) => page.id === id)).filter((page) => Boolean(page));
+    const estimate = pages.reduce((total, page) => total + page.estimatedMinutes, 0);
+    if (pages.length > 0 && module.estimatedMinutes !== estimate) {
+      errors.push(`Module ${module.id} estimate must equal its page estimates (${estimate}).`);
+    }
+    if (module.status === "ready") {
+      if (!pages.some((page) => page.kind === "demo") && !module.gaps.some((gap) => /demo|runtime|behavior/i.test(gap.area))) {
+        errors.push(`Ready module ${module.id} needs a demonstration page or an explicit gap.`);
+      }
+      if (!pages.some((page) => page.kind === "exercise") && !module.gaps.some((gap) => /exercise|change|synthesis/i.test(gap.area))) {
+        errors.push(`Ready module ${module.id} needs a synthesis exercise or an explicit gap.`);
+      }
+      if (pages.length < 6 || pages.length > 15) warnings.push(`Module ${module.id} has ${pages.length} pages; normal modules have 6\u201315.`);
+    }
+    if (!options.partial && module.status !== "ready") errors.push(`Module ${module.id} must be ready before final publication.`);
+  }
+  for (const page of snapshot.pages) {
+    if (!moduleIds.has(page.moduleId)) errors.push(`Page ${page.id} references missing module ${page.moduleId}.`);
+    if (pageAssignments.get(page.id) !== 1) errors.push(`Page ${page.id} must belong to exactly one module.`);
+    if (!options.partial && page.status !== "ready") errors.push(`Page ${page.id} must be ready before final publication.`);
+    const words = page.narrative.trim().split(/\s+/).filter(Boolean).length;
+    if (words > 350) errors.push(`Page ${page.id} exceeds 350 narrative words.`);
+    else if (words > 180) warnings.push(`Page ${page.id} exceeds the recommended 180 narrative words.`);
+    for (const prerequisite of page.prerequisites) {
+      if (!pageIds.has(prerequisite)) errors.push(`Page ${page.id} has missing prerequisite ${prerequisite}.`);
+      if (prerequisite === page.id) errors.push(`Page ${page.id} cannot depend on itself.`);
+      if ((pagePosition.get(prerequisite) ?? -1) >= (pagePosition.get(page.id) ?? Number.MAX_SAFE_INTEGER)) {
+        errors.push(`Page prerequisite ${prerequisite} must appear before ${page.id}.`);
+      }
+    }
+    if (page.status === "ready" && page.evidence.some((evidence) => !evidence.validated && evidence.kind !== "inference")) {
+      errors.push(`Ready page ${page.id} contains unvalidated evidence.`);
+    }
+    for (const interaction of page.interactions) {
+      if (interaction.type === "command" && !interaction.recipe.expected) {
+        errors.push(`Command recipe ${interaction.recipe.id} needs an expected observation.`);
+      }
+      if (interaction.type === "source" && interaction.editable && page.exercise?.mode !== "patch") {
+        errors.push(`Editable source interaction in ${page.id} is only valid for patch exercises.`);
+      }
+      if (interaction.type === "source") {
+        try {
+          const content = await readRevisionFile(root, snapshot.anchor.commit, interaction.path);
+          validateLineRange(
+            `Source interaction ${interaction.path} in ${page.id}`,
+            interaction.lineStart,
+            interaction.lineEnd,
+            Math.max(1, content.split(/\r?\n/).length),
+            errors
+          );
+        } catch {
+          errors.push(`Source interaction ${interaction.path} in ${page.id} cannot be read at the snapshot commit.`);
+        }
+      }
+      if (interaction.type === "data") {
+        if (interaction.columns.length === 0 || interaction.rows.length === 0) {
+          errors.push(`Data interaction in ${page.id} needs columns and rows.`);
+        }
+        for (const [index, row] of interaction.rows.entries()) {
+          const missing = interaction.columns.filter((column) => !(column in row));
+          if (missing.length > 0) errors.push(`Data interaction row ${index + 1} in ${page.id} is missing: ${missing.join(", ")}.`);
+        }
+      }
+    }
+    if (["concept", "walkthrough", "demo", "exercise"].includes(page.kind) && !page.interactions.some((interaction) => interaction.type === "source" || interaction.type === "command")) {
+      errors.push(`${page.kind} page ${page.id} needs a source or command interaction.`);
+    }
+    validateExercise(page, errors);
+    for (const evidence of page.evidence.filter((item) => item.path)) {
+      if (evidence.revision !== snapshot.anchor.commit) {
+        errors.push(`Evidence ${evidence.id} must anchor to snapshot commit ${snapshot.anchor.commit}.`);
+      }
+      if (!evidence.contentHash) {
+        errors.push(`Evidence ${evidence.id} needs a content hash.`);
+        continue;
+      }
+      try {
+        const content = await readRevisionFile(root, snapshot.anchor.commit, evidence.path);
+        validateLineRange(
+          `Evidence ${evidence.id}`,
+          evidence.lineStart,
+          evidence.lineEnd,
+          Math.max(1, content.split(/\r?\n/).length),
+          errors
+        );
+        if (contentHash(content) !== evidence.contentHash) errors.push(`Evidence ${evidence.id} hash does not match ${evidence.path}.`);
+      } catch {
+        errors.push(`Evidence ${evidence.id} cannot read ${evidence.path} at the snapshot commit.`);
+      }
+    }
+  }
+  const core = snapshot.tracks.find((track) => track.kind === "core");
+  if (core) {
+    const coreModules = new Set(core.moduleIds);
+    const silent = snapshot.coverage.filter((entry) => entry.status === "covered" && entry.moduleIds.every((id) => !coreModules.has(id)));
+    if (silent.length > 0) warnings.push("Some coverage entries do not map to the core track.");
+    for (const entry of snapshot.coverage) {
+      if (entry.status !== "covered" && !entry.reason) errors.push(`Coverage gap ${entry.capability} needs a reason.`);
+      if (entry.status === "covered" && entry.moduleIds.length === 0) errors.push(`Covered capability ${entry.capability} needs a module.`);
+      for (const id of entry.moduleIds) if (!moduleIds.has(id)) errors.push(`Coverage ${entry.capability} references missing module ${id}.`);
+    }
+    const normalizedCoverage = new Set(snapshot.coverage.map((entry) => entry.capability.toLowerCase().replace(/[^a-z]/g, "")));
+    for (const capability of [
+      "orientation",
+      "setup",
+      "run",
+      "architecture",
+      "data and state",
+      "test",
+      "debug",
+      "change workflow",
+      "delivery and operations"
+    ]) {
+      if (!normalizedCoverage.has(capability.replace(/[^a-z]/g, ""))) {
+        errors.push(`Core coverage must explicitly address ${capability}.`);
+      }
+    }
+  }
+  const moduleDependencies = Object.fromEntries(snapshot.modules.map((module) => [module.id, module.prerequisites]));
+  if (cyclic(snapshot.modules.map((module) => module.id), moduleDependencies)) errors.push("Module prerequisites must not contain a cycle.");
+  if (cyclic(snapshot.pages.map((page) => page.id), snapshot.dependencies)) errors.push("Page prerequisites must not contain a cycle.");
+  return { valid: errors.length === 0, errors, warnings };
+}
+
+// ../core/src/store.ts
+import { randomUUID as randomUUID2 } from "crypto";
 import { mkdir, readFile as readFile2, rename, rm, writeFile } from "fs/promises";
 import { dirname, join } from "path";
 async function readJson(path2) {
@@ -56432,7 +57118,7 @@ async function readJson(path2) {
 }
 async function atomicJson(path2, value) {
   await mkdir(dirname(path2), { recursive: true });
-  const temporary = `${path2}.${randomUUID()}.tmp`;
+  const temporary = `${path2}.${randomUUID2()}.tmp`;
   await writeFile(temporary, `${JSON.stringify(value, null, 2)}
 `, { mode: 384 });
   await rename(temporary, path2);
@@ -56447,8 +57133,12 @@ var TourStore = class {
   async initialize() {
     await Promise.all([
       mkdir(join(this.base, "cache", "drafts"), { recursive: true }),
-      mkdir(join(this.base, "state"), { recursive: true }),
-      mkdir(join(this.base, "workspaces"), { recursive: true })
+      mkdir(join(this.base, "cache", "snapshots"), { recursive: true }),
+      mkdir(join(this.base, "cache", "jobs"), { recursive: true }),
+      mkdir(join(this.base, "cache", "migrations"), { recursive: true }),
+      mkdir(join(this.base, "diagnostics"), { recursive: true }),
+      mkdir(join(this.base, "state", "exercises"), { recursive: true }),
+      mkdir(join(this.base, "workspaces", "exercises"), { recursive: true })
     ]);
     await this.ensureGitExclude();
   }
@@ -56463,40 +57153,129 @@ var TourStore = class {
     } catch {
     }
   }
+  async parsedSnapshot(path2) {
+    const value = await readJson(path2);
+    if (value === void 0) return void 0;
+    const parsed = parseSnapshot(value);
+    if (parsed.migrated) {
+      await atomicJson(join(this.base, "cache", "migrations", `snapshot-v1-${Date.now()}.json`), value);
+      await atomicJson(path2, parsed.snapshot);
+      await atomicJson(join(this.base, "cache", "snapshots", `${parsed.snapshot.id}.json`), parsed.snapshot);
+    }
+    return parsed.snapshot;
+  }
   async current() {
-    const value = await readJson(join(this.base, "cache", "current.json"));
-    return value === void 0 ? void 0 : TourSnapshotSchema.parse(value);
+    return this.parsedSnapshot(join(this.base, "cache", "current.json"));
+  }
+  async snapshot(id) {
+    return this.parsedSnapshot(join(this.base, "cache", "snapshots", `${id}.json`));
   }
   async saveDraft(snapshot) {
-    await atomicJson(join(this.base, "cache", "drafts", `${snapshot.id}.json`), TourSnapshotSchema.parse(snapshot));
+    await atomicJson(
+      join(this.base, "cache", "drafts", `${snapshot.id}.json`),
+      TourSnapshotSchema.parse(snapshot)
+    );
   }
   async loadDraft(id) {
-    const value = await readJson(join(this.base, "cache", "drafts", `${id}.json`));
-    return value === void 0 ? void 0 : TourSnapshotSchema.parse(value);
+    return this.parsedSnapshot(join(this.base, "cache", "drafts", `${id}.json`));
+  }
+  async publishPartial(snapshot) {
+    const parsed = TourSnapshotSchema.parse({ ...snapshot, status: "partial" });
+    await Promise.all([
+      atomicJson(join(this.base, "cache", "current.json"), parsed),
+      atomicJson(join(this.base, "cache", "snapshots", `${parsed.id}.json`), parsed),
+      this.saveDraft(parsed)
+    ]);
   }
   async publish(snapshot) {
     const parsed = TourSnapshotSchema.parse({ ...snapshot, status: "published" });
-    await atomicJson(join(this.base, "cache", "current.json"), parsed);
-    await this.saveDraft(parsed);
+    await Promise.all([
+      atomicJson(join(this.base, "cache", "current.json"), parsed),
+      atomicJson(join(this.base, "cache", "snapshots", `${parsed.id}.json`), parsed),
+      this.saveDraft(parsed)
+    ]);
   }
   async preferences() {
-    const value = await readJson(join(this.base, "state", "preferences.json"));
-    return PreferencesSchema.parse(value ?? {});
+    return parsePreferences(await readJson(join(this.base, "state", "preferences.json")));
   }
   async savePreferences(value) {
     await atomicJson(join(this.base, "state", "preferences.json"), PreferencesSchema.parse(value));
   }
   async progress() {
-    const value = await readJson(join(this.base, "state", "progress.json"));
-    return ProgressSchema.parse(value ?? {});
+    const path2 = join(this.base, "state", "progress.json");
+    const value = await readJson(path2);
+    const parsed = parseProgress(value);
+    if (parsed.migrated && value !== void 0) {
+      await atomicJson(join(this.base, "cache", "migrations", `progress-v1-${Date.now()}.json`), value);
+      await atomicJson(path2, parsed.progress);
+    }
+    return parsed.progress;
   }
   async saveProgress(value) {
     await atomicJson(join(this.base, "state", "progress.json"), ProgressSchema.parse(value));
   }
+  async generationJob() {
+    const value = await readJson(join(this.base, "state", "generation.json"));
+    return value === void 0 ? void 0 : GenerationJobSchema.parse(value);
+  }
+  async saveGenerationJob(value) {
+    const parsed = GenerationJobSchema.parse(value);
+    await Promise.all([
+      atomicJson(join(this.base, "state", "generation.json"), parsed),
+      atomicJson(join(this.base, "cache", "jobs", `${parsed.id}.json`), parsed)
+    ]);
+  }
+  async generationEvents(jobId) {
+    const value = await readJson(join(this.base, "cache", "jobs", `${jobId}.events.json`));
+    return Array.isArray(value) ? value.map((event) => GenerationEventSchema.parse(event)) : [];
+  }
+  async appendGenerationEvent(event) {
+    const events = await this.generationEvents(event.jobId);
+    const parsed = GenerationEventSchema.parse({ ...event, id: (events.at(-1)?.id ?? 0) + 1 });
+    await atomicJson(
+      join(this.base, "cache", "jobs", `${event.jobId}.events.json`),
+      [...events.slice(-499), parsed]
+    );
+    return parsed;
+  }
+  async saveGenerationArtifact(jobId, name, value) {
+    if (!/^[a-z0-9-]+$/.test(name)) throw new Error(`Invalid generation artifact name: ${name}`);
+    const path2 = join(this.base, "cache", "jobs", `${jobId}.${name}.json`);
+    await atomicJson(path2, value);
+    return path2;
+  }
+  diagnosticPath(id = "latest") {
+    return join(this.base, "diagnostics", `${id}.json`);
+  }
+  async latestDiagnostic() {
+    const value = await readJson(this.diagnosticPath());
+    return value === void 0 ? void 0 : DiagnosticReportSchema.parse(value);
+  }
+  async saveDiagnostic(value) {
+    const parsed = DiagnosticReportSchema.parse(value);
+    await Promise.all([
+      atomicJson(this.diagnosticPath(), parsed),
+      atomicJson(this.diagnosticPath(parsed.id), parsed)
+    ]);
+    return parsed;
+  }
+  async saveExerciseSession(value) {
+    const parsed = ExerciseSessionSchema.parse(value);
+    await atomicJson(join(this.base, "state", "exercises", `${parsed.id}.json`), parsed);
+  }
+  async exerciseSession(id) {
+    const value = await readJson(join(this.base, "state", "exercises", `${id}.json`));
+    return value === void 0 ? void 0 : ExerciseSessionSchema.parse(value);
+  }
+  async removeExerciseSession(id) {
+    await rm(join(this.base, "state", "exercises", `${id}.json`), { force: true });
+  }
   async cleanGenerated() {
     await Promise.all([
       rm(join(this.base, "cache"), { recursive: true, force: true }),
-      rm(join(this.base, "workspaces"), { recursive: true, force: true })
+      rm(join(this.base, "workspaces"), { recursive: true, force: true }),
+      rm(join(this.base, "state", "generation.json"), { force: true }),
+      rm(join(this.base, "state", "exercises"), { recursive: true, force: true })
     ]);
     await this.initialize();
   }
@@ -56505,19 +57284,26 @@ var TourStore = class {
 // ../core/src/runtime.ts
 import { spawn } from "child_process";
 import { execFile as execFile2 } from "child_process";
-import { randomUUID as randomUUID2 } from "crypto";
+import { randomUUID as randomUUID3 } from "crypto";
 import { mkdir as mkdir2, rm as rm2 } from "fs/promises";
 import { resolve as resolve2, relative, isAbsolute, join as join2 } from "path";
 import { promisify as promisify2 } from "util";
 var execFileAsync2 = promisify2(execFile2);
-function contained(root, requested) {
+function writeEscapesWorkspace(path2) {
+  const normalized = path2.replaceAll("\\", "/");
+  return !path2 || path2.includes("\0") || isAbsolute(path2) || normalized.startsWith("/") || /^[A-Za-z]:\//.test(normalized) || normalized.split("/").some((part) => part === "..");
+}
+function recipeRequiresTrustedMode(recipe) {
+  return recipe.capabilities.network === "external" || recipe.capabilities.externalSystems.length > 0 || recipe.capabilities.containers || recipe.capabilities.writes.some(writeEscapesWorkspace);
+}
+function containedPath(root, requested) {
   const target = resolve2(root, requested);
   const rel = relative(root, target);
   if (rel.startsWith("..") || isAbsolute(rel)) throw new Error("Recipe working directory escapes the repository root.");
   return target;
 }
 async function execute(root, recipe, home) {
-  const cwd = contained(root, recipe.cwd);
+  const cwd = containedPath(root, recipe.cwd);
   const startedAt = Date.now();
   return new Promise((resolveResult, reject) => {
     const child = spawn(recipe.command, recipe.args, {
@@ -56569,211 +57355,221 @@ function materialize(recipe, values) {
   });
   return { ...recipe, args: recipe.args.map(replace), env: Object.fromEntries(Object.entries(recipe.env).map(([key, value]) => [key, replace(value)])) };
 }
-async function runRecipe(root, input, trusted = false, values = {}) {
-  const recipe = materialize(RunRecipeSchema.parse(input), values);
-  if (!trusted && (recipe.capabilities.network === "external" || recipe.capabilities.externalSystems.length > 0)) {
-    throw new Error("This recipe requires explicit trusted-mode approval for external access.");
-  }
-  const workspace = join2(root, ".tourguide", "workspaces", randomUUID2());
-  const isolatedHome = join2(workspace, ".tourguide-home");
-  await mkdir2(join2(root, ".tourguide", "workspaces"), { recursive: true });
-  await execFileAsync2("git", ["-C", root, "worktree", "add", "--detach", workspace, "HEAD"]);
-  try {
-    await mkdir2(isolatedHome, { recursive: true });
-    const result2 = await execute(workspace, recipe, isolatedHome);
-    const { stdout: trackedPatch } = await execFileAsync2("git", ["-C", workspace, "diff", "--binary"], {
-      encoding: "utf8",
-      maxBuffer: 8 * 1024 * 1024
-    });
-    const { stdout: changedOutput } = await execFileAsync2("git", ["-C", workspace, "status", "--porcelain=v1", "-z"], { encoding: "utf8" });
-    const changedFiles = changedOutput.split("\0").filter(Boolean).map((entry) => entry.slice(3));
-    const { stdout: untrackedOutput } = await execFileAsync2("git", ["-C", workspace, "ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" });
-    const untracked = untrackedOutput.split("\0").filter(Boolean).filter((path2) => !path2.startsWith(".tourguide-home/"));
-    const patches = [trackedPatch];
-    for (const path2 of untracked) {
-      try {
-        await execFileAsync2("git", ["-C", workspace, "diff", "--no-index", "--binary", "--", "/dev/null", path2], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
-      } catch (error51) {
-        const output = error51.stdout;
-        if (output) patches.push(output);
-      }
+async function workspaceChanges(workspace, recipe) {
+  const { stdout: trackedPatch } = await execFileAsync2("git", ["-C", workspace, "diff", "--binary"], {
+    encoding: "utf8",
+    maxBuffer: 8 * 1024 * 1024
+  });
+  const { stdout: changedOutput } = await execFileAsync2(
+    "git",
+    ["-C", workspace, "status", "--porcelain=v1", "-z"],
+    { encoding: "utf8" }
+  );
+  const changedFiles = changedOutput.split("\0").filter(Boolean).map((entry) => entry.slice(3));
+  const { stdout: untrackedOutput } = await execFileAsync2(
+    "git",
+    ["-C", workspace, "ls-files", "--others", "--exclude-standard", "-z"],
+    { encoding: "utf8" }
+  );
+  const untracked = untrackedOutput.split("\0").filter(Boolean).filter((path2) => !path2.startsWith(".tourguide-home/"));
+  const patches = [trackedPatch];
+  for (const path2 of untracked) {
+    try {
+      await execFileAsync2(
+        "git",
+        ["-C", workspace, "diff", "--no-index", "--binary", "--", "/dev/null", path2],
+        { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }
+      );
+    } catch (error51) {
+      const output = error51.stdout;
+      if (output) patches.push(output);
     }
-    const declared = (path2) => recipe.capabilities.writes.some((pattern) => pattern === path2 || pattern.endsWith("/**") && path2.startsWith(pattern.slice(0, -3)));
-    const visibleChanges = [.../* @__PURE__ */ new Set([...changedFiles.filter((path2) => !path2.startsWith(".tourguide-home/")), ...untracked])];
-    const undeclaredWrites = visibleChanges.filter((path2) => !declared(path2));
-    const patch = patches.join("");
-    return { ...result2, isolated: true, changedFiles: visibleChanges, undeclaredWrites, ...patch ? { patch } : {} };
+  }
+  const declared = (path2) => recipe.capabilities.writes.some(
+    (pattern) => pattern === path2 || pattern.endsWith("/**") && path2.startsWith(pattern.slice(0, -3))
+  );
+  const visibleChanges = [.../* @__PURE__ */ new Set([
+    ...changedFiles.filter((path2) => !path2.startsWith(".tourguide-home/")),
+    ...untracked
+  ])];
+  return {
+    patch: patches.join(""),
+    changedFiles: visibleChanges,
+    undeclaredWrites: visibleChanges.filter((path2) => !declared(path2))
+  };
+}
+async function runRecipeInWorkspace(workspace, input, trusted = false, values = {}) {
+  const recipe = materialize(RunRecipeSchema.parse(input), values);
+  if (!trusted && recipeRequiresTrustedMode(recipe)) {
+    throw new Error("This recipe requires explicit trusted-mode approval for external or host access.");
+  }
+  const isolatedHome = join2(workspace, ".tourguide-home");
+  await mkdir2(isolatedHome, { recursive: true });
+  const result2 = await execute(workspace, recipe, isolatedHome);
+  const changes = await workspaceChanges(workspace, recipe);
+  return {
+    ...result2,
+    isolated: true,
+    changedFiles: changes.changedFiles,
+    undeclaredWrites: changes.undeclaredWrites,
+    ...changes.patch ? { patch: changes.patch } : {}
+  };
+}
+async function runRecipe(root, input, trusted = false, values = {}, revision = "HEAD") {
+  const workspace = join2(root, ".tourguide", "workspaces", randomUUID3());
+  await mkdir2(join2(root, ".tourguide", "workspaces"), { recursive: true });
+  await execFileAsync2("git", ["-C", root, "worktree", "add", "--detach", workspace, revision]);
+  try {
+    return await runRecipeInWorkspace(workspace, input, trusted, values);
   } finally {
     await execFileAsync2("git", ["-C", root, "worktree", "remove", "--force", workspace]).catch(() => void 0);
     await rm2(workspace, { recursive: true, force: true });
   }
 }
 
-// ../core/src/starter.ts
-import { randomUUID as randomUUID3 } from "crypto";
-async function buildStarterTour(inventory) {
-  const sourcePath = inventory.trackedFiles.includes("README.md") ? "README.md" : inventory.manifests[0] ?? inventory.trackedFiles[0];
-  const sourceContent = sourcePath ? await readHeadFile(inventory.root, sourcePath).catch(() => "") : "";
-  const sourceEvidence = sourcePath ? [{
-    id: "repository-entrypoint",
-    kind: "source",
-    label: sourcePath,
-    claim: "This tracked file is a useful starting point for understanding the repository.",
-    path: sourcePath,
-    revision: inventory.head,
-    contentHash: contentHash(sourceContent),
-    validated: true
-  }] : [];
-  const lessons = [
-    {
-      id: "orient-repository",
-      objectiveId: "local-dev.repository-map",
-      title: "Orient yourself in the repository",
-      objective: "Recognize the repository root, current revision, and the files that define its development workflow.",
-      estimatedMinutes: 4,
-      narrative: `Tourguide found **${inventory.trackedFileCount} tracked files** at commit \`${inventory.head.slice(0, 8)}\`. Start with the repository's own documentation and manifests: they are the most reliable description of how its authors expect the project to be developed.`,
-      status: "ready",
-      prerequisites: [],
-      evidence: sourceEvidence,
-      interactions: sourcePath ? [{ type: "source", path: sourcePath, editable: false }] : [{
-        type: "data",
-        title: "Repository inventory",
-        columns: ["metric", "value"],
-        rows: [{ metric: "Tracked files", value: inventory.trackedFileCount }]
-      }],
-      knowledgeCheck: {
-        prompt: "Which file would you consult first before inventing a new setup command?",
-        expectedObservation: "Prefer repository-owned documentation, manifests, and task definitions."
-      },
-      references: []
-    },
-    {
-      id: "inspect-local-state",
-      objectiveId: "local-dev.working-state",
-      title: "Inspect the local working state",
-      objective: "Distinguish committed behavior from local changes without letting temporary edits rewrite the tour.",
-      estimatedMinutes: 3,
-      narrative: `Canonical lessons describe committed **HEAD**. Tourguide currently sees **${inventory.dirtyFiles.length} local change${inventory.dirtyFiles.length === 1 ? "" : "s"}**; referenced changes appear as notifications and diffs, not rewritten explanations.`,
-      status: "ready",
-      prerequisites: ["orient-repository"],
-      evidence: [{
-        id: "git-head",
-        kind: "runtime",
-        label: "Git HEAD and status",
-        claim: "The tour is anchored to the current committed revision.",
-        revision: inventory.head,
-        validated: true
-      }],
-      interactions: [{
-        type: "command",
-        recipe: {
-          id: "git-status",
-          title: "Show working tree status",
-          command: "git",
-          args: ["status", "--short", "--branch"],
-          cwd: ".",
-          lifecycle: "oneshot",
-          timeoutMs: 1e4,
-          env: {},
-          inputs: [],
-          capabilities: { writes: [], network: "none", secrets: [], containers: false, externalSystems: [] },
-          expected: "The first line identifies the branch; later lines identify local changes."
-        }
-      }],
-      knowledgeCheck: {
-        prompt: "Would an uncommitted edit automatically regenerate this lesson?",
-        expectedObservation: "No. It receives a live-change notification while the canonical lesson stays anchored to HEAD."
-      },
-      references: []
-    },
-    {
-      id: "map-development-surfaces",
-      objectiveId: "local-dev.detected-surfaces",
-      title: "Map the detected development surfaces",
-      objective: "Identify which parts of the codebase deserve deeper learning tracks.",
-      estimatedMinutes: 5,
-      narrative: "A shallow inventory identifies likely learning areas before an agent performs deep analysis. Prioritize only the parts relevant to your role; Tourguide will keep the remaining areas as optional outlines.",
-      status: "ready",
-      prerequisites: ["orient-repository"],
-      evidence: inventory.manifests.slice(0, 6).map((path2, index) => ({
-        id: `manifest-${index}`,
-        kind: "config",
-        label: path2,
-        claim: "This manifest contributes to development-workflow discovery.",
-        path: path2,
-        revision: inventory.head,
-        validated: true
-      })),
-      interactions: [{
-        type: "topology",
-        nodes: [
-          { id: "repo", label: inventory.name, kind: "repository" },
-          ...inventory.areas.map((area) => ({ id: area.id, label: area.title, kind: "area" }))
-        ],
-        edges: inventory.areas.map((area) => ({ id: `repo-${area.id}`, source: "repo", target: area.id }))
-      }],
-      knowledgeCheck: {
-        prompt: "Which one or two areas are most relevant to what you need to do first?",
-        expectedObservation: "Choose based on your upcoming work rather than trying to generate every possible track immediately."
-      },
-      references: []
-    },
-    {
-      id: "explore-recent-history",
-      objectiveId: "local-dev.history",
-      title: "Change the window on recent history",
-      objective: "Vary an input and observe how the repository story changes.",
-      estimatedMinutes: 3,
-      narrative: "Commit history often reveals the vocabulary and active seams of a codebase. Change the number of commits below and compare the story at different zoom levels.",
-      status: "ready",
-      prerequisites: ["orient-repository"],
-      evidence: [{ id: "git-history", kind: "history", label: "Recent commits", claim: "Recent commit subjects are read directly from Git HEAD.", revision: inventory.head, validated: true }],
-      interactions: [{
-        type: "command",
-        recipe: {
-          id: "git-recent-history",
-          title: "Inspect recent commits",
-          command: "git",
-          args: ["log", "--oneline", "--decorate", "-n", "{{count}}"],
-          cwd: ".",
-          lifecycle: "oneshot",
-          timeoutMs: 1e4,
-          env: {},
-          inputs: [{ id: "count", label: "Commit count", type: "select", default: "5", options: ["1", "3", "5", "10", "20"] }],
-          capabilities: { writes: [], network: "none", secrets: [], containers: false, externalSystems: [] },
-          expected: "Larger windows reveal more historical context; smaller windows emphasize current work."
-        }
-      }],
-      knowledgeCheck: { prompt: "What changed when you widened the history window?", expectedObservation: "You should see additional commit subjects and may notice recurring areas or vocabulary." },
-      references: []
-    }
-  ];
-  return {
-    schemaVersion: 1,
-    id: randomUUID3(),
-    projectName: inventory.name,
-    repositoryRoot: inventory.root,
-    head: inventory.head,
-    branch: inventory.branch,
-    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    generator: "tourguide-starter",
-    status: "published",
-    tracks: [{
-      id: "local-development",
-      title: "Local development",
-      summary: "Start, inspect, test, and debug the application locally.",
-      kind: "core",
-      priority: 0,
-      lessonIds: lessons.map((lesson) => lesson.id)
-    }],
-    lessons,
-    dependencies: {
-      "inspect-local-state": ["orient-repository"],
-      "map-development-surfaces": ["orient-repository"],
-      "explore-recent-history": ["orient-repository"]
-    }
-  };
+// ../core/src/exercise.ts
+import { execFile as execFile3 } from "child_process";
+import { randomUUID as randomUUID4 } from "crypto";
+import { lstat, mkdir as mkdir3, readFile as readFile3, rm as rm3, writeFile as writeFile2 } from "fs/promises";
+import { isAbsolute as isAbsolute2, relative as relative2, resolve as resolve3, sep } from "path";
+import { promisify as promisify3 } from "util";
+var execFileAsync3 = promisify3(execFile3);
+var MAX_EDITABLE_BYTES = 512 * 1024;
+var SESSION_LIFETIME_MS = 24 * 60 * 60 * 1e3;
+function safeRelativePath(path2) {
+  if (!path2 || isAbsolute2(path2) || path2.includes("\0")) throw new Error("Exercise paths must be relative.");
+  const normalized = path2.replaceAll("\\", "/");
+  if (normalized.split("/").some((part) => part === ".." || part === "")) {
+    throw new Error("Exercise paths cannot escape the workspace.");
+  }
+  return normalized;
 }
+function sessionWorkspace(root, id) {
+  if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("Invalid exercise session ID.");
+  const base = resolve3(root, ".tourguide", "workspaces", "exercises");
+  const target = resolve3(base, id);
+  if (!target.startsWith(`${base}${sep}`)) throw new Error("Exercise workspace escapes its generated directory.");
+  return target;
+}
+async function assertEditableFile(workspace, path2) {
+  const target = resolve3(workspace, safeRelativePath(path2));
+  const rel = relative2(workspace, target);
+  if (rel.startsWith("..") || isAbsolute2(rel)) throw new Error("Exercise path escapes its workspace.");
+  const stat = await lstat(target);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("Only regular, non-symlink files can be edited.");
+  if (stat.size > MAX_EDITABLE_BYTES) throw new Error("Exercise file is too large for the browser editor.");
+  return target;
+}
+async function addWorktree(root, workspace, commit) {
+  await mkdir3(resolve3(root, ".tourguide", "workspaces", "exercises"), { recursive: true });
+  await execFileAsync3("git", ["-C", root, "worktree", "add", "--detach", workspace, commit]);
+}
+async function removeWorktree(root, workspace) {
+  await execFileAsync3("git", ["-C", root, "worktree", "remove", "--force", workspace]).catch(() => void 0);
+  await rm3(workspace, { recursive: true, force: true });
+}
+var ExerciseWorkspaceManager = class {
+  constructor(root, store) {
+    this.root = root;
+    this.store = store ?? new TourStore(root);
+  }
+  root;
+  store;
+  async requireSession(id) {
+    const session = await this.store.exerciseSession(id);
+    if (!session) throw new Error("Exercise session not found.");
+    if (Date.parse(session.expiresAt) <= Date.now()) {
+      await this.remove(id);
+      throw new Error("Exercise session expired.");
+    }
+    if (session.workspace !== sessionWorkspace(this.root, id)) throw new Error("Exercise session has an invalid workspace.");
+    return session;
+  }
+  async create(snapshot, page) {
+    if (page.kind !== "exercise" || !page.exercise) throw new Error("This page is not an exercise.");
+    const allowedPaths = [...new Set(page.exercise.allowedPaths.map(safeRelativePath))];
+    const id = randomUUID4();
+    const workspace = sessionWorkspace(this.root, id);
+    await this.store.initialize();
+    await addWorktree(this.root, workspace, snapshot.anchor.commit);
+    try {
+      const files = [];
+      for (const path2 of allowedPaths) {
+        const target = await assertEditableFile(workspace, path2);
+        const buffer = await readFile3(target);
+        if (buffer.includes(0)) throw new Error(`Exercise file ${path2} is binary.`);
+        files.push({ path: path2, content: buffer.toString("utf8") });
+      }
+      const now = /* @__PURE__ */ new Date();
+      const session = {
+        id,
+        snapshotId: snapshot.id,
+        pageId: page.id,
+        commit: snapshot.anchor.commit,
+        workspace,
+        allowedPaths,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        expiresAt: new Date(now.getTime() + SESSION_LIFETIME_MS).toISOString()
+      };
+      await this.store.saveExerciseSession(session);
+      return { session, files };
+    } catch (error51) {
+      await removeWorktree(this.root, workspace);
+      throw error51;
+    }
+  }
+  async files(id) {
+    const session = await this.requireSession(id);
+    return Promise.all(session.allowedPaths.map(async (path2) => ({
+      path: path2,
+      content: await readFile3(await assertEditableFile(session.workspace, path2), "utf8")
+    })));
+  }
+  async write(id, path2, content) {
+    const session = await this.requireSession(id);
+    const normalized = safeRelativePath(path2);
+    if (!session.allowedPaths.includes(normalized)) throw new Error("This path is not editable in the exercise.");
+    if (Buffer.byteLength(content, "utf8") > MAX_EDITABLE_BYTES) throw new Error("Exercise file is too large.");
+    const target = await assertEditableFile(session.workspace, normalized);
+    await writeFile2(target, content, "utf8");
+    await this.store.saveExerciseSession({ ...session, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    return { path: normalized, content };
+  }
+  async run(id, snapshot, page, action, trusted = false) {
+    const session = await this.requireSession(id);
+    if (session.snapshotId !== snapshot.id || session.pageId !== page.id) throw new Error("Exercise session does not match this page.");
+    const recipe = action === "format" ? page.exercise?.formatRecipe : page.exercise?.verificationRecipe;
+    if (!recipe) throw new Error(`This exercise does not provide a ${action} recipe.`);
+    return runRecipeInWorkspace(session.workspace, recipe, trusted);
+  }
+  async patch(id) {
+    const session = await this.requireSession(id);
+    if (session.allowedPaths.length === 0) return "";
+    const { stdout } = await execFileAsync3(
+      "git",
+      ["-C", session.workspace, "diff", "--binary", "--", ...session.allowedPaths],
+      { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }
+    );
+    return stdout;
+  }
+  async reset(id) {
+    const session = await this.requireSession(id);
+    await removeWorktree(this.root, session.workspace);
+    await addWorktree(this.root, session.workspace, session.commit);
+    const updated = { ...session, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    await this.store.saveExerciseSession(updated);
+    return { session: updated, files: await this.files(id) };
+  }
+  async remove(id) {
+    const workspace = sessionWorkspace(this.root, id);
+    await removeWorktree(this.root, workspace);
+    await this.store.removeExerciseSession(id);
+  }
+};
+
+// ../core/src/starter.ts
+import { randomUUID as randomUUID5 } from "crypto";
 
 // ../../node_modules/.pnpm/open@11.0.0/node_modules/open/index.js
 import process9 from "process";
@@ -56783,7 +57579,7 @@ import childProcess3 from "child_process";
 import fs6, { constants as fsConstants3 } from "fs/promises";
 
 // ../../node_modules/.pnpm/wsl-utils@0.3.1/node_modules/wsl-utils/index.js
-import { promisify as promisify4 } from "util";
+import { promisify as promisify5 } from "util";
 import childProcess2 from "child_process";
 import fs5, { constants as fsConstants2 } from "fs/promises";
 
@@ -56864,10 +57660,10 @@ var is_wsl_default = process3.env.__IS_WSL_TEST__ ? isWsl : isWsl();
 // ../../node_modules/.pnpm/powershell-utils@0.1.0/node_modules/powershell-utils/index.js
 import process4 from "process";
 import { Buffer as Buffer2 } from "buffer";
-import { promisify as promisify3 } from "util";
+import { promisify as promisify4 } from "util";
 import childProcess from "child_process";
 import fs4, { constants as fsConstants } from "fs/promises";
-var execFile3 = promisify3(childProcess.execFile);
+var execFile4 = promisify4(childProcess.execFile);
 var powerShellPath = () => `${process4.env.SYSTEMROOT || process4.env.windir || String.raw`C:\Windows`}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
 var executePowerShell = async (command, options = {}) => {
   const {
@@ -56875,7 +57671,7 @@ var executePowerShell = async (command, options = {}) => {
     ...execFileOptions
   } = options;
   const encodedCommand = executePowerShell.encodeCommand(command);
-  return execFile3(
+  return execFile4(
     psPath ?? powerShellPath(),
     [
       ...executePowerShell.argumentsPrefix,
@@ -56912,7 +57708,7 @@ function parseMountPointFromConfig(content) {
 }
 
 // ../../node_modules/.pnpm/wsl-utils@0.3.1/node_modules/wsl-utils/index.js
-var execFile4 = promisify4(childProcess2.execFile);
+var execFile5 = promisify5(childProcess2.execFile);
 var wslDrivesMountPoint = /* @__PURE__ */ (() => {
   const defaultMountPoint = "/mnt/";
   let mountPoint;
@@ -56969,7 +57765,7 @@ var convertWslPathToWindows = async (path2) => {
     return path2;
   }
   try {
-    const { stdout } = await execFile4("wslpath", ["-aw", path2], { encoding: "utf8" });
+    const { stdout } = await execFile5("wslpath", ["-aw", path2], { encoding: "utf8" });
     return stdout.trim();
   } catch {
     return path2;
@@ -56995,20 +57791,20 @@ function defineLazyProperty(object3, propertyName, valueGetter) {
 }
 
 // ../../node_modules/.pnpm/default-browser@5.5.0/node_modules/default-browser/index.js
-import { promisify as promisify8 } from "util";
+import { promisify as promisify9 } from "util";
 import process7 from "process";
-import { execFile as execFile8 } from "child_process";
+import { execFile as execFile9 } from "child_process";
 
 // ../../node_modules/.pnpm/default-browser-id@5.0.1/node_modules/default-browser-id/index.js
-import { promisify as promisify5 } from "util";
+import { promisify as promisify6 } from "util";
 import process5 from "process";
-import { execFile as execFile5 } from "child_process";
-var execFileAsync3 = promisify5(execFile5);
+import { execFile as execFile6 } from "child_process";
+var execFileAsync4 = promisify6(execFile6);
 async function defaultBrowserId() {
   if (process5.platform !== "darwin") {
     throw new Error("macOS only");
   }
-  const { stdout } = await execFileAsync3("defaults", ["read", "com.apple.LaunchServices/com.apple.launchservices.secure", "LSHandlers"]);
+  const { stdout } = await execFileAsync4("defaults", ["read", "com.apple.LaunchServices/com.apple.launchservices.secure", "LSHandlers"]);
   const match = /LSHandlerRoleAll = "(?!-)(?<id>[^"]+?)";\s+?LSHandlerURLScheme = (?:http|https);/.exec(stdout);
   const browserId = match?.groups.id ?? "com.apple.Safari";
   if (browserId === "com.apple.safari") {
@@ -57019,9 +57815,9 @@ async function defaultBrowserId() {
 
 // ../../node_modules/.pnpm/run-applescript@7.1.0/node_modules/run-applescript/index.js
 import process6 from "process";
-import { promisify as promisify6 } from "util";
-import { execFile as execFile6, execFileSync } from "child_process";
-var execFileAsync4 = promisify6(execFile6);
+import { promisify as promisify7 } from "util";
+import { execFile as execFile7, execFileSync } from "child_process";
+var execFileAsync5 = promisify7(execFile7);
 async function runAppleScript(script, { humanReadableOutput = true, signal } = {}) {
   if (process6.platform !== "darwin") {
     throw new Error("macOS only");
@@ -57031,7 +57827,7 @@ async function runAppleScript(script, { humanReadableOutput = true, signal } = {
   if (signal) {
     execOptions.signal = signal;
   }
-  const { stdout } = await execFileAsync4("osascript", ["-e", script, outputArguments], execOptions);
+  const { stdout } = await execFileAsync5("osascript", ["-e", script, outputArguments], execOptions);
   return stdout.trim();
 }
 
@@ -57042,9 +57838,9 @@ tell application "System Events" to get value of property list item "CFBundleNam
 }
 
 // ../../node_modules/.pnpm/default-browser@5.5.0/node_modules/default-browser/windows.js
-import { promisify as promisify7 } from "util";
-import { execFile as execFile7 } from "child_process";
-var execFileAsync5 = promisify7(execFile7);
+import { promisify as promisify8 } from "util";
+import { execFile as execFile8 } from "child_process";
+var execFileAsync6 = promisify8(execFile8);
 var windowsBrowserProgIds = {
   MSEdgeHTM: { name: "Edge", id: "com.microsoft.edge" },
   // The missing `L` is correct.
@@ -57067,7 +57863,7 @@ var windowsBrowserProgIds = {
 var _windowsBrowserProgIdMap = new Map(Object.entries(windowsBrowserProgIds));
 var UnknownBrowserError = class extends Error {
 };
-async function defaultBrowser(_execFileAsync = execFileAsync5) {
+async function defaultBrowser(_execFileAsync = execFileAsync6) {
   const { stdout } = await _execFileAsync("reg", [
     "QUERY",
     " HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice",
@@ -57087,7 +57883,7 @@ async function defaultBrowser(_execFileAsync = execFileAsync5) {
 }
 
 // ../../node_modules/.pnpm/default-browser@5.5.0/node_modules/default-browser/index.js
-var execFileAsync6 = promisify8(execFile8);
+var execFileAsync7 = promisify9(execFile9);
 var titleize = (string4) => string4.toLowerCase().replaceAll(/(?:^|\s|-)\S/g, (x) => x.toUpperCase());
 async function defaultBrowser2() {
   if (process7.platform === "darwin") {
@@ -57096,7 +57892,7 @@ async function defaultBrowser2() {
     return { name, id };
   }
   if (process7.platform === "linux") {
-    const { stdout } = await execFileAsync6("xdg-mime", ["query", "default", "x-scheme-handler/http"]);
+    const { stdout } = await execFileAsync7("xdg-mime", ["query", "default", "x-scheme-handler/http"]);
     const id = stdout.trim();
     const name = titleize(id.replace(/.desktop$/, "").replace("-", " "));
     return { name, id };
@@ -57286,19 +58082,19 @@ var baseOpen = async (options) => {
   }
   const subprocess = childProcess3.spawn(command, cliArguments, childProcessOptions);
   if (options.wait) {
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve5, reject) => {
       subprocess.once("error", reject);
       subprocess.once("close", (exitCode) => {
         if (!options.allowNonzeroExitCode && exitCode !== 0) {
           reject(new Error(`Exited with code ${exitCode}`));
           return;
         }
-        resolve4(subprocess);
+        resolve5(subprocess);
       });
     });
   }
   if (isFallbackAttempt) {
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve5, reject) => {
       subprocess.once("error", reject);
       subprocess.once("spawn", () => {
         subprocess.once("close", (exitCode) => {
@@ -57308,17 +58104,17 @@ var baseOpen = async (options) => {
             return;
           }
           subprocess.unref();
-          resolve4(subprocess);
+          resolve5(subprocess);
         });
       });
     });
   }
   subprocess.unref();
-  return new Promise((resolve4, reject) => {
+  return new Promise((resolve5, reject) => {
     subprocess.once("error", reject);
     subprocess.once("spawn", () => {
       subprocess.off("error", reject);
-      resolve4(subprocess);
+      resolve5(subprocess);
     });
   });
 };
@@ -57394,8 +58190,349 @@ defineLazyProperty(apps, "safari", () => detectPlatformBinary({
 }));
 var open_default = open;
 
+// src/codex-exec.ts
+import { execFile as execFile10, spawn as spawn2 } from "child_process";
+import { mkdtemp, readFile as readFile4, rm as rm4, writeFile as writeFile3 } from "fs/promises";
+import { join as join4 } from "path";
+import { tmpdir } from "os";
+import { promisify as promisify10 } from "util";
+var execFileAsync8 = promisify10(execFile10);
+var CodexExecFailure = class extends Error {
+  diagnostic;
+  constructor(message, diagnostic) {
+    super(message);
+    this.name = "CodexExecFailure";
+    this.diagnostic = diagnostic;
+  }
+};
+function parseVersion(value) {
+  const match = value.match(/(\d+)\.(\d+)\.(\d+)/);
+  return match ? { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) } : void 0;
+}
+function supportedVersion(value) {
+  const parsed = parseVersion(value);
+  return Boolean(parsed && (parsed.major > 0 || parsed.minor >= 60));
+}
+function emptyUsage() {
+  return { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+}
+function numberAt(value, names) {
+  if (!value || typeof value !== "object") return 0;
+  const record2 = value;
+  for (const name of names) if (typeof record2[name] === "number") return record2[name];
+  return 0;
+}
+function eventMessage(event) {
+  const item = event.item;
+  if (item && typeof item === "object") {
+    const text = item.text;
+    if (typeof text === "string" && text.trim()) return text.trim();
+  }
+  const message = event.message;
+  return typeof message === "string" && message.trim() ? message.trim() : void 0;
+}
+function nullable2(schema) {
+  const variants = Array.isArray(schema.anyOf) ? schema.anyOf : void 0;
+  if (variants?.some((item) => item && typeof item === "object" && item.type === "null")) return schema;
+  return { anyOf: [schema, { type: "null" }] };
+}
+function strictSchemaNode(input) {
+  if (Array.isArray(input)) return input.map(strictSchemaNode);
+  if (!input || typeof input !== "object") return input;
+  const source = input;
+  const output = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (["$schema", "default", "propertyNames"].includes(key)) continue;
+    if (key === "oneOf") {
+      output.anyOf = strictSchemaNode(value);
+      continue;
+    }
+    if (key === "format" && value === "uri") continue;
+    if (key === "additionalProperties") continue;
+    output[key] = strictSchemaNode(value);
+  }
+  const isObject2 = source.type === "object" || "properties" in source || "additionalProperties" in source;
+  if (isObject2) {
+    const properties = source.properties && typeof source.properties === "object" ? source.properties : {};
+    const originallyRequired = new Set(Array.isArray(source.required) ? source.required.filter((item) => typeof item === "string") : []);
+    output.type = "object";
+    output.properties = Object.fromEntries(Object.entries(properties).map(([key, value]) => {
+      const converted = strictSchemaNode(value);
+      return [key, originallyRequired.has(key) ? converted : nullable2(converted)];
+    }));
+    output.required = Object.keys(properties);
+    output.additionalProperties = false;
+  }
+  return output;
+}
+function codexOutputSchema(schema) {
+  return strictSchemaNode(external_exports.toJSONSchema(schema));
+}
+function normalizeCodexOutput(value) {
+  if (Array.isArray(value)) return value.map(normalizeCodexOutput);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== null).map(([key, item]) => [key, normalizeCodexOutput(item)]));
+}
+var CodexExecRunner = class {
+  constructor(executable = process.env.TOURGUIDE_CODEX_BIN || "codex") {
+    this.executable = executable;
+  }
+  executable;
+  async status() {
+    let version2 = "";
+    try {
+      const result2 = await execFileAsync8(this.executable, ["--version"], { encoding: "utf8", timeout: 1e4 });
+      version2 = result2.stdout.trim() || result2.stderr.trim();
+    } catch (error51) {
+      if (error51.code === "ENOENT") {
+        return CodexStatusSchema.parse({
+          status: "missing",
+          message: "Codex CLI was not found on PATH. Install Codex and sign in before generating a tour."
+        });
+      }
+      return CodexStatusSchema.parse({ status: "error", message: `Could not run Codex CLI: ${String(error51)}` });
+    }
+    if (!supportedVersion(version2)) {
+      return CodexStatusSchema.parse({
+        status: "unsupported",
+        version: version2,
+        message: "This Codex CLI is too old for structured exec sessions. Update Codex and try again."
+      });
+    }
+    try {
+      const help = await execFileAsync8(this.executable, ["exec", "--help"], { encoding: "utf8", timeout: 1e4 });
+      if (!help.stdout.includes("--output-schema") || !help.stdout.includes("--json")) {
+        return CodexStatusSchema.parse({
+          status: "unsupported",
+          version: version2,
+          message: "This Codex CLI does not expose the structured exec options Tourguide needs."
+        });
+      }
+      const auth = await execFileAsync8(this.executable, ["login", "status"], { encoding: "utf8", timeout: 1e4 });
+      return CodexStatusSchema.parse({
+        status: "ready",
+        version: version2,
+        auth: `${auth.stdout}${auth.stderr}`.trim(),
+        message: "Codex CLI is installed and authenticated."
+      });
+    } catch (error51) {
+      const detail = `${error51.stdout ?? ""}${error51.stderr ?? ""}`.trim();
+      return CodexStatusSchema.parse({
+        status: "unauthenticated",
+        version: version2,
+        ...detail ? { auth: detail } : {},
+        message: "Codex CLI is installed but not signed in. Run `codex login`, then retry."
+      });
+    }
+  }
+  async run(request) {
+    const scratch = await mkdtemp(join4(tmpdir(), "tourguide-codex-"));
+    const schemaPath = join4(scratch, "output.schema.json");
+    const outputPath = join4(scratch, "result.json");
+    await writeFile3(schemaPath, `${JSON.stringify(codexOutputSchema(request.schema), null, 2)}
+`, "utf8");
+    const common = [
+      "--ignore-user-config",
+      "--ignore-rules",
+      "--output-schema",
+      schemaPath,
+      "--json",
+      "-o",
+      outputPath,
+      ...request.model ? ["--model", request.model] : []
+    ];
+    const args = request.threadId ? ["exec", "resume", ...common, request.threadId, "-"] : [
+      "exec",
+      ...common,
+      "--sandbox",
+      "read-only",
+      "-C",
+      request.cwd,
+      "-c",
+      'approval_policy="never"',
+      "-c",
+      'web_search="disabled"',
+      "-c",
+      'shell_environment_policy.inherit="core"',
+      "-"
+    ];
+    const usage2 = emptyUsage();
+    const messages = [];
+    let threadId = request.threadId;
+    let stderr = "";
+    let stdout = "";
+    let stdoutBuffer = "";
+    const consumeLine = (line) => {
+      if (!line.trim()) return;
+      try {
+        const event = JSON.parse(line);
+        if (event.type === "thread.started" && typeof event.thread_id === "string") threadId = event.thread_id;
+        const eventUsage = event.usage;
+        if (eventUsage && typeof eventUsage === "object") {
+          usage2.inputTokens = Math.max(usage2.inputTokens, numberAt(eventUsage, ["input_tokens", "inputTokens"]));
+          usage2.cachedInputTokens = Math.max(usage2.cachedInputTokens, numberAt(eventUsage, ["cached_input_tokens", "cachedInputTokens"]));
+          usage2.outputTokens = Math.max(usage2.outputTokens, numberAt(eventUsage, ["output_tokens", "outputTokens"]));
+        }
+        const message = eventMessage(event);
+        if (message) {
+          messages.push(message);
+          request.onMessage?.(message);
+        }
+      } catch {
+        messages.push(line.trim());
+      }
+    };
+    try {
+      await new Promise((resolveRun, rejectRun) => {
+        const child = spawn2(this.executable, args, {
+          cwd: request.cwd,
+          shell: false,
+          detached: process.platform !== "win32",
+          env: process.env,
+          stdio: ["pipe", "pipe", "pipe"]
+        });
+        const stop = () => {
+          if (process.platform !== "win32" && child.pid) {
+            try {
+              process.kill(-child.pid, "SIGTERM");
+            } catch {
+              child.kill("SIGTERM");
+            }
+          } else child.kill("SIGTERM");
+        };
+        request.signal?.addEventListener("abort", stop, { once: true });
+        if (request.signal?.aborted) stop();
+        child.once("error", (error51) => rejectRun(new CodexExecFailure(
+          `Could not start Codex exec: ${error51.message}`,
+          { executable: this.executable, args, code: error51.code }
+        )));
+        child.stderr.on("data", (chunk) => {
+          stderr = `${stderr}${chunk.toString("utf8")}`.slice(-1048576);
+        });
+        child.stdout.on("data", (chunk) => {
+          const text = chunk.toString("utf8");
+          stdout = `${stdout}${text}`.slice(-1048576);
+          stdoutBuffer += text;
+          const lines = stdoutBuffer.split("\n");
+          stdoutBuffer = lines.pop() ?? "";
+          for (const line of lines) consumeLine(line);
+        });
+        child.stdin.end(request.prompt);
+        child.once("close", (code, signal) => {
+          request.signal?.removeEventListener("abort", stop);
+          if (stdoutBuffer.trim()) consumeLine(stdoutBuffer);
+          if (request.signal?.aborted) return rejectRun(new Error("Tour generation was cancelled."));
+          if (code === 0) resolveRun();
+          else {
+            const detail = stderr.trim() || messages.at(-1) || stdout.trim() || "no diagnostic output";
+            rejectRun(new CodexExecFailure(`Codex exec failed (${signal ?? code}): ${detail}`, {
+              executable: this.executable,
+              args,
+              exitCode: code,
+              signal,
+              stderr: stderr.trim(),
+              stdout: stdout.trim(),
+              messages: messages.slice(-20)
+            }));
+          }
+        });
+      });
+      const raw = JSON.parse(await readFile4(outputPath, "utf8"));
+      const parsed = request.schema.parse(normalizeCodexOutput(raw));
+      return {
+        value: parsed,
+        usage: usage2,
+        messages,
+        ...threadId ? { threadId } : {}
+      };
+    } finally {
+      await rm4(scratch, { recursive: true, force: true });
+    }
+  }
+};
+
+// src/diagnostics.ts
+import { randomUUID as randomUUID6 } from "crypto";
+
+// src/version.ts
+var TOURGUIDE_VERSION = "0.2.0";
+
+// src/diagnostics.ts
+var MAX_TEXT = 64 * 1024;
+function redactDiagnosticText(value) {
+  return value.slice(-MAX_TEXT).replace(/([?&](?:token|key|secret|password)=)[^&#\s]+/gi, "$1[REDACTED]").replace(/(authorization\s*[:=]\s*bearer\s+)[^\s,;]+/gi, "$1[REDACTED]").replace(/\b(sk-(?:proj-)?[A-Za-z0-9_-]{12,}|gh[opusr]_[A-Za-z0-9_]{12,})\b/g, "[REDACTED]").replace(/(["']?(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)["']?\s*[:=]\s*["'])[^"'\s]+/gi, "$1[REDACTED]");
+}
+function redactValue(value, depth = 0) {
+  if (depth > 6) return "[TRUNCATED]";
+  if (typeof value === "string") return redactDiagnosticText(value);
+  if (typeof value === "number" || typeof value === "boolean" || value === null) return value;
+  if (Array.isArray(value)) return value.slice(-100).map((item) => redactValue(item, depth + 1));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).slice(0, 100).map(([key, item]) => [
+      key,
+      /token|password|secret|authorization|api.?key/i.test(key) && typeof item !== "number" && typeof item !== "boolean" ? "[REDACTED]" : redactValue(item, depth + 1)
+    ]));
+  }
+  return String(value);
+}
+function diagnosticError(error51) {
+  if (!(error51 instanceof Error)) {
+    return { name: "UnknownError", message: redactDiagnosticText(String(error51)), details: {} };
+  }
+  const details = "diagnostic" in error51 && error51.diagnostic && typeof error51.diagnostic === "object" ? redactValue(error51.diagnostic) : {};
+  return {
+    name: error51.name,
+    message: redactDiagnosticText(error51.message),
+    ...error51.stack ? { stack: redactDiagnosticText(error51.stack) } : {},
+    details
+  };
+}
+async function buildDiagnosticReport(root, input, store = new TourStore(root)) {
+  await store.initialize();
+  const [inventory, generation] = await Promise.all([
+    inspectRepositoryAt(root, "HEAD").catch(() => void 0),
+    store.generationJob().catch(() => void 0)
+  ]);
+  const recentEvents = generation ? (await store.generationEvents(generation.id).catch(() => [])).slice(-50) : [];
+  return DiagnosticReportSchema.parse({
+    schemaVersion: 1,
+    id: `${Date.now()}-${randomUUID6().slice(0, 8)}`,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+    trigger: input.trigger,
+    summary: redactDiagnosticText(input.summary),
+    repository: {
+      root,
+      ...inventory ? {
+        name: inventory.name,
+        ref: inventory.ref,
+        commit: inventory.head,
+        dirtyFiles: inventory.dirtyFiles
+      } : {}
+    },
+    runtime: {
+      tourguideVersion: TOURGUIDE_VERSION,
+      node: process.version,
+      platform: process.platform,
+      arch: process.arch
+    },
+    ...input.codex ? { codex: input.codex } : {},
+    ...generation ? { generation: redactValue(generation) } : {},
+    recentEvents: redactValue(recentEvents),
+    ...input.error !== void 0 ? { error: diagnosticError(input.error) } : {},
+    context: redactValue(input.context ?? {})
+  });
+}
+async function captureDiagnostic(root, input, store = new TourStore(root)) {
+  const report = await buildDiagnosticReport(root, input, store);
+  await store.saveDiagnostic(report);
+  return { report, path: store.diagnosticPath() };
+}
+function formatDiagnosticReport(report) {
+  return JSON.stringify(report, null, 2);
+}
+
 // src/mcp.ts
-import { randomUUID as randomUUID4 } from "crypto";
+import { randomUUID as randomUUID8 } from "crypto";
 
 // ../../node_modules/.pnpm/zod@4.4.3/node_modules/zod/v3/helpers/util.js
 var util;
@@ -57769,15 +58906,15 @@ var makeIssue = (params) => {
       message: issueData.message
     };
   }
-  let errorMessage = "";
+  let errorMessage2 = "";
   const maps = errorMaps.filter((m) => !!m).slice().reverse();
   for (const map2 of maps) {
-    errorMessage = map2(fullIssue, { data, defaultError: errorMessage }).message;
+    errorMessage2 = map2(fullIssue, { data, defaultError: errorMessage2 }).message;
   }
   return {
     ...issueData,
     path: fullPath,
-    message: errorMessage
+    message: errorMessage2
   };
 };
 function addIssueToContext(ctx, issueData) {
@@ -63055,19 +64192,19 @@ var getRefs = (options) => {
 };
 
 // ../../node_modules/.pnpm/zod-to-json-schema@3.25.2_zod@4.4.3/node_modules/zod-to-json-schema/dist/esm/errorMessages.js
-function addErrorMessage(res, key, errorMessage, refs) {
+function addErrorMessage(res, key, errorMessage2, refs) {
   if (!refs?.errorMessages)
     return;
-  if (errorMessage) {
+  if (errorMessage2) {
     res.errorMessage = {
       ...res.errorMessage,
-      [key]: errorMessage
+      [key]: errorMessage2
     };
   }
 }
-function setResponseValueAndErrors(res, key, value, errorMessage, refs) {
+function setResponseValueAndErrors(res, key, value, errorMessage2, refs) {
   res[key] = value;
-  addErrorMessage(res, key, errorMessage, refs);
+  addErrorMessage(res, key, errorMessage2, refs);
 }
 
 // ../../node_modules/.pnpm/zod-to-json-schema@3.25.2_zod@4.4.3/node_modules/zod-to-json-schema/dist/esm/getRelativePath.js
@@ -64378,8 +65515,8 @@ var Protocol = class {
                   if (queuedMessage.type === "response") {
                     resolver(message);
                   } else {
-                    const errorMessage = message;
-                    const error51 = new McpError(errorMessage.error.code, errorMessage.error.message, errorMessage.error.data);
+                    const errorMessage2 = message;
+                    const error51 = new McpError(errorMessage2.error.code, errorMessage2.error.message, errorMessage2.error.data);
                     resolver(error51);
                   }
                 } else {
@@ -64825,7 +65962,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
+        await new Promise((resolve5) => setTimeout(resolve5, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error51) {
@@ -64842,7 +65979,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve5, reject) => {
       const earlyReject = (error51) => {
         reject(error51);
       };
@@ -64920,7 +66057,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve4(parseResult.data);
+            resolve5(parseResult.data);
           }
         } catch (error51) {
           reject(error51);
@@ -65181,12 +66318,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve5, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve4, interval);
+      const timeoutId = setTimeout(resolve5, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -65679,23 +66816,23 @@ var Server = class extends Protocol {
       const wrappedHandler = async (request, extra) => {
         const validatedRequest = safeParse3(CallToolRequestSchema, request);
         if (!validatedRequest.success) {
-          const errorMessage = validatedRequest.error instanceof Error ? validatedRequest.error.message : String(validatedRequest.error);
-          throw new McpError(ErrorCode.InvalidParams, `Invalid tools/call request: ${errorMessage}`);
+          const errorMessage2 = validatedRequest.error instanceof Error ? validatedRequest.error.message : String(validatedRequest.error);
+          throw new McpError(ErrorCode.InvalidParams, `Invalid tools/call request: ${errorMessage2}`);
         }
         const { params } = validatedRequest.data;
         const result2 = await Promise.resolve(handler(request, extra));
         if (params.task) {
           const taskValidationResult = safeParse3(CreateTaskResultSchema, result2);
           if (!taskValidationResult.success) {
-            const errorMessage = taskValidationResult.error instanceof Error ? taskValidationResult.error.message : String(taskValidationResult.error);
-            throw new McpError(ErrorCode.InvalidParams, `Invalid task creation result: ${errorMessage}`);
+            const errorMessage2 = taskValidationResult.error instanceof Error ? taskValidationResult.error.message : String(taskValidationResult.error);
+            throw new McpError(ErrorCode.InvalidParams, `Invalid task creation result: ${errorMessage2}`);
           }
           return taskValidationResult.data;
         }
         const validationResult = safeParse3(CallToolResultSchema, result2);
         if (!validationResult.success) {
-          const errorMessage = validationResult.error instanceof Error ? validationResult.error.message : String(validationResult.error);
-          throw new McpError(ErrorCode.InvalidParams, `Invalid tools/call result: ${errorMessage}`);
+          const errorMessage2 = validationResult.error instanceof Error ? validationResult.error.message : String(validationResult.error);
+          throw new McpError(ErrorCode.InvalidParams, `Invalid tools/call result: ${errorMessage2}`);
         }
         return validationResult.data;
       };
@@ -66189,12 +67326,12 @@ var McpServer = class {
    * @param errorMessage - The error message.
    * @returns The tool error result.
    */
-  createToolError(errorMessage) {
+  createToolError(errorMessage2) {
     return {
       content: [
         {
           type: "text",
-          text: errorMessage
+          text: errorMessage2
         }
       ],
       isError: true
@@ -66212,8 +67349,8 @@ var McpServer = class {
     const parseResult = await safeParseAsync3(schemaToParse, args);
     if (!parseResult.success) {
       const error51 = "error" in parseResult ? parseResult.error : "Unknown error";
-      const errorMessage = getParseErrorMessage(error51);
-      throw new McpError(ErrorCode.InvalidParams, `Input validation error: Invalid arguments for tool ${toolName}: ${errorMessage}`);
+      const errorMessage2 = getParseErrorMessage(error51);
+      throw new McpError(ErrorCode.InvalidParams, `Input validation error: Invalid arguments for tool ${toolName}: ${errorMessage2}`);
     }
     return parseResult.data;
   }
@@ -66237,8 +67374,8 @@ var McpServer = class {
     const parseResult = await safeParseAsync3(outputObj, result2.structuredContent);
     if (!parseResult.success) {
       const error51 = "error" in parseResult ? parseResult.error : "Unknown error";
-      const errorMessage = getParseErrorMessage(error51);
-      throw new McpError(ErrorCode.InvalidParams, `Output validation error: Invalid structured content for tool ${toolName}: ${errorMessage}`);
+      const errorMessage2 = getParseErrorMessage(error51);
+      throw new McpError(ErrorCode.InvalidParams, `Output validation error: Invalid structured content for tool ${toolName}: ${errorMessage2}`);
     }
   }
   /**
@@ -66286,7 +67423,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
+      await new Promise((resolve5) => setTimeout(resolve5, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -66450,8 +67587,8 @@ var McpServer = class {
         const parseResult = await safeParseAsync3(argsObj, request.params.arguments);
         if (!parseResult.success) {
           const error51 = "error" in parseResult ? parseResult.error : "Unknown error";
-          const errorMessage = getParseErrorMessage(error51);
-          throw new McpError(ErrorCode.InvalidParams, `Invalid arguments for prompt ${request.params.name}: ${errorMessage}`);
+          const errorMessage2 = getParseErrorMessage(error51);
+          throw new McpError(ErrorCode.InvalidParams, `Invalid arguments for prompt ${request.params.name}: ${errorMessage2}`);
         }
         const args = parseResult.data;
         const cb = prompt.callback;
@@ -66935,12 +68072,12 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve4) => {
+    return new Promise((resolve5) => {
       const json2 = serializeMessage(message);
       if (this._stdout.write(json2)) {
-        resolve4();
+        resolve5();
       } else {
-        this._stdout.once("drain", resolve4);
+        this._stdout.once("drain", resolve5);
       }
     });
   }
@@ -66949,33 +68086,650 @@ var StdioServerTransport = class {
 // src/web-server.ts
 var import_static = __toESM(require_static(), 1);
 var import_fastify = __toESM(require_fastify(), 1);
-import { existsSync } from "fs";
 import { randomBytes } from "crypto";
-import { dirname as dirname2, resolve as resolve3 } from "path";
+import { existsSync } from "fs";
+import { dirname as dirname3, resolve as resolve4 } from "path";
 import { fileURLToPath as fileURLToPath2 } from "url";
-var here = dirname2(fileURLToPath2(import.meta.url));
+
+// src/generation.ts
+import { execFile as execFile11 } from "child_process";
+import { randomUUID as randomUUID7 } from "crypto";
+import { mkdir as mkdir4, rm as rm5, writeFile as writeFile4 } from "fs/promises";
+import { basename as basename2, dirname as dirname2, join as join5 } from "path";
+import { promisify as promisify11 } from "util";
+var execFileAsync9 = promisify11(execFile11);
+var MAX_SOURCE_FILE_BYTES = 768 * 1024;
+var MAX_SOURCE_TOTAL_BYTES = 30 * 1024 * 1024;
+var MAX_EXERCISE_FILE_BYTES = 512 * 1024;
+var BINARY_EXTENSIONS = /* @__PURE__ */ new Set([
+  ".7z",
+  ".avi",
+  ".bin",
+  ".bmp",
+  ".class",
+  ".db",
+  ".dll",
+  ".dylib",
+  ".eot",
+  ".exe",
+  ".gif",
+  ".gz",
+  ".ico",
+  ".jar",
+  ".jpeg",
+  ".jpg",
+  ".lockb",
+  ".mov",
+  ".mp3",
+  ".mp4",
+  ".o",
+  ".otf",
+  ".pdf",
+  ".png",
+  ".pyc",
+  ".so",
+  ".tar",
+  ".ttf",
+  ".webm",
+  ".webp",
+  ".woff",
+  ".woff2",
+  ".zip"
+]);
+function excludedSource(path2) {
+  const lower = path2.toLowerCase();
+  const name = basename2(lower);
+  const extension = name.includes(".") ? name.slice(name.lastIndexOf(".")) : "";
+  return lower.startsWith(".git/") || lower.startsWith(".tourguide/") || lower.startsWith("node_modules/") || lower.includes("/node_modules/") || BINARY_EXTENSIONS.has(extension) || /^\.env(?:\.|$)/.test(name) || /(?:^|[-_.])(credential|credentials|private[-_.]?key|secret|secrets|token|tokens)(?:[-_.]|$)/.test(name) || /\.(?:key|p12|pfx|pem)$/.test(name);
+}
+async function createGenerationWorkspace(inventory, jobId) {
+  const path2 = join5(inventory.root, ".tourguide", "cache", "generation", jobId, "repository");
+  await mkdir4(path2, { recursive: true });
+  const excluded = [];
+  let total = 0;
+  for (const sourcePath of inventory.trackedFiles) {
+    if (excludedSource(sourcePath)) {
+      excluded.push(sourcePath);
+      continue;
+    }
+    let content;
+    try {
+      content = await readRevisionFile(inventory.root, inventory.head, sourcePath);
+    } catch {
+      excluded.push(sourcePath);
+      continue;
+    }
+    const size = Buffer.byteLength(content, "utf8");
+    if (size > MAX_SOURCE_FILE_BYTES || total + size > MAX_SOURCE_TOTAL_BYTES || content.includes("\0")) {
+      excluded.push(sourcePath);
+      continue;
+    }
+    total += size;
+    const target = join5(path2, sourcePath);
+    await mkdir4(dirname2(target), { recursive: true });
+    await writeFile4(target, content, "utf8");
+  }
+  await writeFile4(join5(path2, ".tourguide-generation-context.md"), [
+    "# Tourguide generation context",
+    "",
+    `Repository: ${inventory.name}`,
+    `Selected ref: ${inventory.ref}`,
+    `Selected commit: ${inventory.head}`,
+    `Tracked files at commit: ${inventory.trackedFileCount}`,
+    `Files omitted from this filtered generation copy: ${excluded.length}`,
+    "",
+    "This is a disposable, filtered copy. Inspect it freely. Do not assume omitted files are absent from the real repository.",
+    ""
+  ].join("\n"), "utf8");
+  await execFileAsync9("git", ["init", "-q", path2]);
+  await execFileAsync9("git", ["-C", path2, "config", "user.name", "Tourguide"]);
+  await execFileAsync9("git", ["-C", path2, "config", "user.email", "tourguide@localhost"]);
+  await execFileAsync9("git", ["-C", path2, "add", "--all"]);
+  await execFileAsync9("git", ["-C", path2, "commit", "-q", "-m", `Selected source ${inventory.head}`]);
+  return { path: path2, excluded };
+}
+function planPrompt(inventory, goal, priorities) {
+  return `You are the curriculum architect for an interactive tour of this software package.
+
+Inspect the repository thoroughly. Build a curriculum with the pacing of go.dev/tour: small atomic pages, but enough adjacent pages to develop real depth. This is a software package, so ground every module in the selected repository and teach authentic paths through code, configuration, tests, runtime behavior, and delivery.
+
+Learner goal:
+${goal}
+
+Learner priorities:
+${priorities.length ? priorities.map((item) => `- ${item}`).join("\n") : "- Infer the most useful priorities from the goal."}
+
+Selected source:
+- repository: ${inventory.name}
+- ref: ${inventory.ref}
+- commit: ${inventory.head}
+
+Requirements:
+- Produce one core track at priority 0 plus one selected, goal-driven track when the goal warrants it.
+- A normal module has 6\u201315 ordered pages and follows context, structure, flow, behavior, failure, change, recap.
+- Each normal module plans at least one demo and one synthesis exercise.
+- Coverage must contain exactly one entry for each of these capability names: orientation, setup, run, architecture, data and state, test, debug, change workflow, delivery and operations.
+- Every uncovered capability must be explicitly not-applicable, blocked, or omitted with a reason.
+- Tracks are learner routes, not directory listings. Modules teach capabilities or subsystems.
+- Page IDs, module IDs, and track IDs must be globally unique, stable kebab-case identifiers.
+- Track moduleIds and each module trackId must agree.
+- Keep the scope achievable: broad core onboarding plus the single most relevant goal-driven path.
+
+Return only the structured curriculum plan requested by the output schema.`;
+}
+function modulePrompt(plan, planned, inventory) {
+  return `Continue authoring the Tourguide curriculum. Draft one complete module from the approved plan.
+
+Selected commit: ${inventory.head}
+Module plan:
+${JSON.stringify(planned, null, 2)}
+
+Whole curriculum context:
+${JSON.stringify({
+    summary: plan.summary,
+    tracks: plan.tracks.map((track) => ({ id: track.id, title: track.title, moduleIds: track.moduleIds })),
+    modules: plan.modules.map((module) => ({ id: module.id, title: module.title, outcome: module.outcome }))
+  }, null, 2)}
+
+Teaching requirements:
+- Return exactly the planned page IDs, in the planned order, and the exact moduleId.
+- Each page is an atomic 1\u20135 minute step with roughly 40\u2013180 words; never exceed 350 words.
+- Pages form one continuous explanation through a representative code or runtime spine, not isolated file summaries.
+- Every page has at least one authentic interaction.
+- Concept, walkthrough, demo, and exercise pages use source or command evidence, not generic prose alone.
+- Source paths must exist in this repository. Cite material claims with evidence and useful line ranges.
+- Source and evidence line ranges must be ascending and within the referenced file.
+- Mark evidence validated only when you actually inspected or ran it. Use inference evidence for clearly labeled deductions.
+- Command recipes use an executable plus argv, never a shell command string. Declare writes and expected observations.
+- Command recipe env is a list of unique name/value entries. File writes must be repository-relative paths; describe containers or other external mutation under capabilities instead.
+- Data interactions declare columns once and encode each row as a same-length array of cell strings in that column order.
+- Demos ask the learner to predict, vary, run, and observe meaningful behavior.
+- Exercises have an observable task, progressive hints, reset behavior, and verification when feasible.
+- Patch exercises may edit only explicitly listed tracked text files and their recipe writes must remain inside those paths.
+- Use a safe trace, diagnose, observe, or design exercise when a patch would need secrets, network, containers, or external systems.
+- Do not invent runtime output. Record blocked or unavailable experiments honestly in the narrative and evidence.
+
+Return only the structured module requested by the output schema.`;
+}
+function moduleRepairPrompt(planned, error51) {
+  return `Repair the previously generated Tourguide module and return the complete corrected module.
+
+The previous response passed the output schema, but failed repository-aware normalization or validation:
+${error51}
+
+Repair requirements:
+- Return the exact moduleId ${planned.id}.
+- Return exactly these page IDs in this order: ${planned.pages.map((page) => page.id).join(", ")}.
+- Preserve accurate, useful material from the previous response while correcting every reported defect.
+- Reinspect repository files when needed; never invent paths, line ranges, commands, or observations.
+- Every concept, walkthrough, demo, and exercise page must have a source or command interaction, or path-backed source evidence that can ground it.
+- Source and evidence ranges must be ascending and within the referenced file.
+- Command env values use name/value entry arrays, and data table rows use cell arrays matching their declared columns.
+
+Return only the complete structured module requested by the output schema.`;
+}
+function normalizedTracks(plan) {
+  const byTrack = /* @__PURE__ */ new Map();
+  for (const module of plan.modules) {
+    byTrack.set(module.trackId, [...byTrack.get(module.trackId) ?? [], module.id]);
+  }
+  return plan.tracks.map((track) => ({ ...track, moduleIds: byTrack.get(track.id) ?? [] }));
+}
+function draftFromPlan(plan, inventory, id) {
+  const plannedPageIds = /* @__PURE__ */ new Set();
+  const plannedModuleIds = new Set(plan.modules.map((module) => module.id));
+  for (const module of plan.modules) {
+    if ((module.pages.length < 6 || module.pages.length > 15) && !module.gaps.some((gap) => /scope|curriculum|page|length/i.test(gap.area))) {
+      throw new Error(`Planned module ${module.id} has ${module.pages.length} pages without an explicit scope gap.`);
+    }
+    if (!module.pages.some((page) => page.kind === "demo") && !module.gaps.some((gap) => /demo|runtime|behavior/i.test(gap.area))) {
+      throw new Error(`Planned module ${module.id} has no demonstration or explicit gap.`);
+    }
+    if (!module.pages.some((page) => page.kind === "exercise") && !module.gaps.some((gap) => /exercise|change|synthesis/i.test(gap.area))) {
+      throw new Error(`Planned module ${module.id} has no synthesis exercise or explicit gap.`);
+    }
+    for (const page of module.pages) {
+      if (plannedPageIds.has(page.id)) throw new Error(`Curriculum repeats page ID ${page.id}.`);
+      plannedPageIds.add(page.id);
+    }
+  }
+  const tracks = normalizedTracks(plan);
+  const knownTracks = new Set(tracks.map((track) => track.id));
+  for (const module of plan.modules) {
+    if (!knownTracks.has(module.trackId)) throw new Error(`Module ${module.id} references unknown track ${module.trackId}.`);
+  }
+  return TourSnapshotSchema.parse({
+    schemaVersion: 2,
+    id,
+    projectName: plan.projectName,
+    repositoryRoot: inventory.root,
+    anchor: { ref: inventory.ref, commit: inventory.head },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    generator: "tourguide-codex-exec",
+    promptVersion: 2,
+    status: "draft",
+    tracks,
+    modules: plan.modules.map((module) => ({
+      id: module.id,
+      title: module.title,
+      outcome: module.outcome,
+      relevance: module.relevance,
+      estimatedMinutes: module.pages.length * 3,
+      prerequisites: module.prerequisites.filter((prerequisite) => plannedModuleIds.has(prerequisite)),
+      pageIds: module.pages.map((page) => page.id),
+      surfaces: module.surfaces.filter((path2) => inventory.trackedFiles.includes(path2)),
+      gaps: module.gaps,
+      status: "planned"
+    })),
+    pages: [],
+    coverage: plan.coverage,
+    dependencies: {}
+  });
+}
+async function normalizeModule(generated, planned, inventory) {
+  if (generated.moduleId !== planned.id) throw new Error(`Codex returned module ${generated.moduleId}; expected ${planned.id}.`);
+  const generatedById = new Map(generated.pages.map((page) => [page.id, page]));
+  const expectedIds = planned.pages.map((page) => page.id);
+  if (generatedById.size !== expectedIds.length || expectedIds.some((id) => !generatedById.has(id))) {
+    throw new Error(`Module ${planned.id} must return exactly its ${expectedIds.length} planned pages.`);
+  }
+  const tracked = new Set(inventory.trackedFiles);
+  const excluded = new Set(inventory.excludedFiles);
+  const { stdout: treeOutput } = await execFileAsync9(
+    "git",
+    ["-C", inventory.root, "ls-tree", "-r", "-z", inventory.head],
+    { encoding: "utf8" }
+  );
+  const modes = new Map(treeOutput.split("\0").filter(Boolean).map((entry) => {
+    const separator = entry.indexOf("	");
+    return [entry.slice(separator + 1), entry.slice(0, entry.indexOf(" "))];
+  }));
+  const contents = /* @__PURE__ */ new Map();
+  const source = async (path2) => {
+    const cached2 = contents.get(path2);
+    if (cached2 !== void 0) return cached2;
+    const content = await readRevisionFile(inventory.root, inventory.head, path2);
+    contents.set(path2, content);
+    return content;
+  };
+  return Promise.all(expectedIds.map(async (id) => {
+    const page = generatedById.get(id);
+    const interactions = await Promise.all(page.interactions.map(async (interaction) => {
+      if (interaction.type === "source" && (!tracked.has(interaction.path) || excluded.has(interaction.path))) {
+        throw new Error(`Page ${id} references unavailable source ${interaction.path}.`);
+      }
+      if (interaction.type === "source") return normalizeRange({
+        ...interaction,
+        editable: interaction.editable && page.kind === "exercise" && page.exercise?.mode === "patch"
+      }, await source(interaction.path));
+      if (interaction.type === "command") return { ...interaction, recipe: normalizeRecipe(interaction.recipe) };
+      if (interaction.type === "data") return {
+        ...interaction,
+        rows: interaction.rows.map((row) => Object.fromEntries(
+          interaction.columns.map((column, index) => [column, row[index] ?? ""])
+        ))
+      };
+      return interaction;
+    }));
+    const evidence = await Promise.all(page.evidence.map(async (item) => {
+      if (!item.path) {
+        return {
+          ...item,
+          kind: item.validated === true ? item.kind : "inference",
+          revision: inventory.head,
+          validated: item.validated === true
+        };
+      }
+      if (!tracked.has(item.path) || excluded.has(item.path)) {
+        throw new Error(`Evidence ${item.id} references unavailable path ${item.path}.`);
+      }
+      const content = await source(item.path);
+      return {
+        ...normalizeRange(item, content),
+        revision: inventory.head,
+        contentHash: contentHash(content),
+        validated: true
+      };
+    }));
+    const needsGrounding = ["concept", "walkthrough", "demo", "exercise"].includes(page.kind) && !interactions.some((interaction) => interaction.type === "source" || interaction.type === "command");
+    const grounding = needsGrounding ? evidence.find((item) => item.path) : void 0;
+    if (needsGrounding && !grounding?.path) {
+      throw new Error(`${page.kind} page ${page.id} needs source evidence or a command interaction.`);
+    }
+    const groundedInteractions = grounding?.path ? [
+      ...interactions,
+      {
+        type: "source",
+        path: grounding.path,
+        editable: false,
+        ...grounding.lineStart ? { lineStart: grounding.lineStart } : {},
+        ...grounding.lineEnd ? { lineEnd: grounding.lineEnd } : {}
+      }
+    ] : interactions;
+    let exercise;
+    if (page.exercise) {
+      const { verificationRecipe, formatRecipe, ...rest2 } = page.exercise;
+      for (const path2 of page.exercise.allowedPaths) {
+        if (!tracked.has(path2) || excluded.has(path2)) {
+          throw new Error(`Exercise ${id} allows unavailable path ${path2}.`);
+        }
+        if (!modes.get(path2)?.startsWith("100")) {
+          throw new Error(`Exercise ${id} path ${path2} must be a regular, non-symlink file.`);
+        }
+        const content = await source(path2);
+        if (content.includes("\0")) throw new Error(`Exercise ${id} path ${path2} must be a text file.`);
+        if (Buffer.byteLength(content, "utf8") > MAX_EXERCISE_FILE_BYTES) {
+          throw new Error(`Exercise ${id} path ${path2} is too large for the browser editor.`);
+        }
+      }
+      exercise = {
+        ...rest2,
+        ...verificationRecipe ? { verificationRecipe: normalizeRecipe(verificationRecipe) } : {},
+        ...formatRecipe ? { formatRecipe: normalizeRecipe(formatRecipe) } : {}
+      };
+    }
+    const { evidence: _generatedEvidence, interactions: _generatedInteractions, exercise: _generatedExercise, ...rest } = page;
+    return {
+      ...rest,
+      moduleId: planned.id,
+      status: "ready",
+      evidence,
+      interactions: groundedInteractions,
+      ...exercise ? { exercise } : {}
+    };
+  }));
+}
+function addUsage(current, added) {
+  return {
+    inputTokens: current.inputTokens + added.inputTokens,
+    cachedInputTokens: current.cachedInputTokens + added.cachedInputTokens,
+    outputTokens: current.outputTokens + added.outputTokens
+  };
+}
+function removeUnknownPrerequisitesFromPages(pages, plan) {
+  const pageIds = new Set(plan.modules.flatMap((module) => module.pages.map((page) => page.id)));
+  return pages.map((page) => ({
+    ...page,
+    prerequisites: page.prerequisites.filter((prerequisite) => pageIds.has(prerequisite))
+  }));
+}
+function normalizeRecipe(recipe) {
+  return {
+    ...recipe,
+    env: Object.fromEntries(recipe.env.map((entry) => [entry.name, entry.value]))
+  };
+}
+function normalizeRange(value, content) {
+  if (value.lineStart === void 0 && value.lineEnd === void 0) return value;
+  const maximum = Math.max(1, content.split(/\r?\n/).length);
+  const clamp = (line) => line === void 0 ? void 0 : Math.min(maximum, Math.max(1, line));
+  let start = clamp(value.lineStart);
+  let end = clamp(value.lineEnd);
+  if (start !== void 0 && end !== void 0 && start > end) [start, end] = [end, start];
+  return {
+    ...value,
+    ...start !== void 0 ? { lineStart: start } : {},
+    ...end !== void 0 ? { lineEnd: end } : {}
+  };
+}
+var TourGenerator = class {
+  constructor(root, store = new TourStore(root), runner = new CodexExecRunner()) {
+    this.root = root;
+    this.store = store;
+    this.runner = runner;
+  }
+  root;
+  store;
+  runner;
+  active;
+  async start(input) {
+    if (this.active) throw new Error("A tour generation job is already running.");
+    const inventory = await inspectRepositoryAt(this.root, input.ref ?? "HEAD");
+    const status = await this.runner.status();
+    if (status.status !== "ready") throw new Error(status.message);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const job = GenerationJobSchema.parse({
+      id: randomUUID7(),
+      action: "create",
+      status: "queued",
+      phase: "preparing",
+      anchor: { ref: inventory.ref, commit: inventory.head },
+      goal: input.goal,
+      priorities: input.priorities ?? [],
+      ...input.model ? { model: input.model } : {},
+      codexVersion: status.version,
+      message: "Preparing a filtered copy of the selected commit.",
+      startedAt: now,
+      updatedAt: now
+    });
+    await this.store.initialize();
+    await this.store.saveGenerationJob(job);
+    await this.store.appendGenerationEvent({
+      jobId: job.id,
+      type: "status",
+      message: job.message,
+      createdAt: now
+    });
+    const controller = new AbortController();
+    this.active = { jobId: job.id, controller };
+    void this.generate(job, inventory, controller.signal).finally(() => {
+      if (this.active?.jobId === job.id) this.active = void 0;
+    });
+    return job;
+  }
+  async cancel() {
+    if (!this.active) throw new Error("No tour generation job is running.");
+    this.active.controller.abort();
+  }
+  async save(job, patch) {
+    const next = GenerationJobSchema.parse({ ...job, ...patch, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    await this.store.saveGenerationJob(next);
+    return next;
+  }
+  async event(job, type, message, moduleId) {
+    await this.store.appendGenerationEvent({
+      jobId: job.id,
+      type,
+      message,
+      ...moduleId ? { moduleId } : {},
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  }
+  async generate(initial, inventory, signal) {
+    let job = initial;
+    let workspace;
+    let snapshot;
+    try {
+      job = await this.save(job, { status: "running", phase: "preparing" });
+      const prepared = await createGenerationWorkspace(inventory, job.id);
+      workspace = prepared.path;
+      const generationInventory = { ...inventory, excludedFiles: prepared.excluded };
+      await this.event(job, "status", `Prepared ${inventory.trackedFileCount - prepared.excluded.length} source files; omitted ${prepared.excluded.length} sensitive, binary, or oversized files.`);
+      job = await this.save(job, { phase: "planning", message: "Designing tracks, coverage, and module sequences." });
+      await this.event(job, "status", job.message);
+      const planResult = await this.runner.run({
+        cwd: workspace,
+        prompt: planPrompt(generationInventory, job.goal, job.priorities),
+        schema: CurriculumPlanSchema,
+        ...job.model ? { model: job.model } : {},
+        signal
+      });
+      await this.store.saveGenerationArtifact(job.id, "plan", planResult.value);
+      snapshot = draftFromPlan(planResult.value, generationInventory, randomUUID7());
+      const planReport = await validateSnapshot(snapshot, this.root, { partial: true });
+      if (!planReport.valid) throw new Error(`Curriculum plan failed validation:
+${planReport.errors.join("\n")}`);
+      await this.store.saveDraft(snapshot);
+      job = await this.save(job, {
+        threadId: planResult.threadId,
+        snapshotId: snapshot.id,
+        plannedModuleIds: planResult.value.modules.map((module) => module.id),
+        usage: addUsage(job.usage, planResult.usage),
+        phase: "drafting",
+        message: `Planned ${planResult.value.modules.length} modules. Drafting the first module.`
+      });
+      await this.event(job, "status", job.message);
+      for (const planned of planResult.value.modules) {
+        if (signal.aborted) throw new Error("Tour generation was cancelled.");
+        job = await this.save(job, {
+          phase: "drafting",
+          currentModuleId: planned.id,
+          message: `Drafting ${planned.title}.`
+        });
+        await this.event(job, "status", job.message, planned.id);
+        if (!snapshot) throw new Error("Generation lost its curriculum snapshot.");
+        const baseSnapshot = snapshot;
+        let candidate;
+        let repairReason;
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const generated = await this.runner.run({
+            cwd: workspace,
+            prompt: attempt === 0 ? modulePrompt(planResult.value, planned, generationInventory) : moduleRepairPrompt(planned, repairReason ?? "The module failed validation."),
+            schema: GeneratedModuleSchema,
+            ...job.model ? { model: job.model } : {},
+            ...job.threadId ? { threadId: job.threadId } : {},
+            signal
+          });
+          job = await this.save(job, {
+            threadId: generated.threadId ?? job.threadId,
+            usage: addUsage(job.usage, generated.usage)
+          });
+          await this.store.saveGenerationArtifact(
+            job.id,
+            attempt === 0 ? `module-${planned.id}` : `module-${planned.id}-repair`,
+            generated.value
+          );
+          try {
+            const pages = removeUnknownPrerequisitesFromPages(
+              await normalizeModule(generated.value, planned, generationInventory),
+              planResult.value
+            );
+            const replacement = new Set(pages.map((page) => page.id));
+            const allPages = [...baseSnapshot.pages.filter((page) => !replacement.has(page.id)), ...pages];
+            const next = TourSnapshotSchema.parse({
+              ...baseSnapshot,
+              pages: allPages,
+              modules: baseSnapshot.modules.map((module) => module.id === planned.id ? {
+                ...module,
+                pageIds: pages.map((page) => page.id),
+                estimatedMinutes: pages.reduce((total, page) => total + page.estimatedMinutes, 0),
+                status: "ready"
+              } : module),
+              dependencies: Object.fromEntries(allPages.map((page) => [page.id, page.prerequisites])),
+              status: "partial"
+            });
+            const report2 = await validateSnapshot(next, this.root, { partial: true });
+            if (!report2.valid) throw new Error(`Generated module failed validation:
+${report2.errors.join("\n")}`);
+            candidate = next;
+            break;
+          } catch (error51) {
+            if (attempt === 1) throw error51;
+            repairReason = error51 instanceof Error ? error51.message : String(error51);
+            job = await this.save(job, {
+              message: `Repairing ${planned.title} after validation failed.`
+            });
+            await this.event(job, "status", `${job.message}
+${repairReason}`, planned.id);
+          }
+        }
+        if (!candidate) throw new Error(`Could not produce a valid ${planned.title} module.`);
+        snapshot = candidate;
+        job = await this.save(job, {
+          completedModuleIds: [...job.completedModuleIds, planned.id],
+          status: "partial",
+          message: `${planned.title} is ready.`
+        });
+        await this.store.publishPartial(snapshot);
+        await this.event(job, "module-ready", job.message, planned.id);
+      }
+      job = await this.save(job, { status: "running", phase: "validating", message: "Validating the complete tour." });
+      await this.event(job, "status", job.message);
+      const report = await validateSnapshot(snapshot, this.root);
+      if (!report.valid) throw new Error(`Tour failed publication validation:
+${report.errors.join("\n")}`);
+      job = await this.save(job, { phase: "publishing", message: "Publishing the complete tour." });
+      await this.store.publish(snapshot);
+      job = await this.save(job, { status: "complete", phase: "complete", message: "Tour generation is complete." });
+      await this.event(job, "complete", job.message);
+    } catch (error51) {
+      const rawMessage = error51 instanceof Error ? error51.message : String(error51);
+      const message = redactDiagnosticText(rawMessage);
+      const cancelled = signal.aborted || /cancelled/i.test(rawMessage);
+      const partial2 = Boolean(snapshot?.pages.length);
+      const failurePhase = job.phase;
+      job = await this.save(job, {
+        status: cancelled ? "cancelled" : partial2 ? "partial" : "failed",
+        phase: partial2 ? "publishing" : job.phase,
+        message,
+        errorCode: cancelled ? "cancelled" : /login|auth/i.test(message) ? "auth" : /usage|limit|quota/i.test(message) ? "usage" : /validation/i.test(message) ? "validation" : "engine"
+      });
+      await this.event(job, cancelled ? "status" : "error", message);
+      if (!cancelled) {
+        await captureDiagnostic(this.root, {
+          trigger: "generation",
+          summary: `Tour generation failed during ${failurePhase}.`,
+          error: error51,
+          context: {
+            jobId: job.id,
+            phase: failurePhase,
+            currentModuleId: job.currentModuleId,
+            partialSnapshotAvailable: partial2
+          },
+          codex: { status: "error", ...job.codexVersion ? { version: job.codexVersion } : {} }
+        }, this.store).catch(() => void 0);
+      }
+    } finally {
+      if (workspace) await rm5(join5(inventory.root, ".tourguide", "cache", "generation", job.id), { recursive: true, force: true });
+    }
+  }
+};
+
+// src/web-server.ts
+var here = dirname3(fileURLToPath2(import.meta.url));
 function staticDirectory() {
   const candidates = [
     process.env.TOURGUIDE_WEB_DIR,
-    resolve3(here, "web"),
-    resolve3(here, "../../../apps/web/dist"),
-    resolve3(process.cwd(), "plugins/tourguide/dist/web")
+    resolve4(here, "web"),
+    resolve4(here, "../../../apps/web/dist"),
+    resolve4(process.cwd(), "plugins/tourguide/dist/web")
   ].filter((candidate) => Boolean(candidate));
-  return candidates.find((candidate) => existsSync(resolve3(candidate, "index.html"))) ?? candidates[0];
+  return candidates.find((candidate) => existsSync(resolve4(candidate, "index.html"))) ?? candidates[0];
 }
-function findRecipe(tour, id) {
-  for (const lesson of tour?.lessons ?? []) {
-    for (const interaction of lesson.interactions) {
-      if (interaction.type === "command" && interaction.recipe.id === id) return interaction.recipe;
-    }
-  }
-  return void 0;
+function findRecipe(tour, pageId, recipeId) {
+  const page = tour?.pages.find((candidate) => candidate.id === pageId);
+  const matches = page?.interactions.flatMap((interaction) => interaction.type === "command" && interaction.recipe.id === recipeId ? [interaction.recipe] : []) ?? [];
+  return matches.length === 1 ? matches[0] : void 0;
 }
-async function startWebServer(start, port = 0) {
-  const inventory = await inspectRepository(start);
-  const store = new TourStore(inventory.root);
+function findPage(tour, id) {
+  return tour?.pages.find((page) => page.id === id);
+}
+function errorMessage(error51) {
+  return error51 instanceof Error ? error51.message : String(error51);
+}
+async function startWebServer(start, port = 0, options = {}) {
+  const initialInventory = await inspectRepositoryAt(start, options.ref ?? "HEAD");
+  const store = new TourStore(initialInventory.root);
   await store.initialize();
-  if (!await store.current()) await store.publish(await buildStarterTour(inventory));
+  const interrupted = await store.generationJob();
+  if (interrupted && !interrupted.errorCode && interrupted.phase !== "complete" && ["queued", "running", "partial"].includes(interrupted.status)) {
+    const partial2 = Boolean((await store.current())?.pages.length);
+    await store.saveGenerationJob({
+      ...interrupted,
+      status: partial2 ? "partial" : "failed",
+      errorCode: "engine",
+      message: "The previous Tourguide process stopped before generation completed. Start a new tour to retry.",
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    await captureDiagnostic(initialInventory.root, {
+      trigger: "interrupted",
+      summary: "The previous Tourguide process stopped during generation.",
+      context: { jobId: interrupted.id, phase: interrupted.phase }
+    }, store).catch(() => void 0);
+  }
+  const runner = new CodexExecRunner();
+  const generator = new TourGenerator(initialInventory.root, store, runner);
+  const exercises = new ExerciseWorkspaceManager(initialInventory.root, store);
   const app = (0, import_fastify.default)({ logger: false, bodyLimit: 2 * 1024 * 1024 });
   const token = randomBytes(24).toString("base64url");
   app.addHook("onRequest", async (request, reply) => {
@@ -66986,23 +68740,91 @@ async function startWebServer(start, port = 0) {
       return reply.code(401).send({ error: "Invalid Tourguide session token" });
     }
   });
-  app.get("/api/health", async () => ({ ok: true, version: "0.1.0" }));
-  app.get("/api/project", async () => {
-    const currentInventory = await inspectRepository(inventory.root);
+  app.setErrorHandler(async (error51, request, reply) => {
+    const httpError = error51;
+    const statusCode = httpError.statusCode && httpError.statusCode >= 400 ? httpError.statusCode : 500;
+    if (statusCode < 500) return reply.code(statusCode).send({ error: httpError.message });
+    const captured = await captureDiagnostic(initialInventory.root, {
+      trigger: "server",
+      summary: `${request.method} ${request.url} failed unexpectedly.`,
+      error: httpError,
+      context: { method: request.method, url: request.url }
+    }, store).catch(() => void 0);
+    return reply.code(statusCode).send({
+      error: httpError.message,
+      ...captured ? { diagnosticPath: captured.path } : {}
+    });
+  });
+  const bootstrap = async () => {
     const tour = await store.current();
+    const anchoredInventory = await inspectRepositoryAt(
+      initialInventory.root,
+      tour?.anchor.commit ?? initialInventory.head
+    );
+    const inventory = tour ? { ...anchoredInventory, ref: tour.anchor.ref } : initialInventory;
+    const job = await store.generationJob();
     return {
-      inventory: currentInventory,
+      inventory,
+      refs: await listRepositoryRefs(initialInventory.root),
+      codex: await runner.status(),
+      tour,
+      job,
+      events: job ? await store.generationEvents(job.id) : [],
       preferences: await store.preferences(),
       progress: await store.progress(),
-      freshness: tour ? await assessFreshness(inventory.root, tour, currentInventory.head) : void 0
+      freshness: tour ? await assessFreshness(initialInventory.root, tour, (await inspectRepositoryAt(initialInventory.root, "HEAD")).head) : void 0,
+      defaultModel: options.model
     };
-  });
+  };
+  app.get("/api/health", async () => ({ ok: true, version: TOURGUIDE_VERSION }));
+  app.get("/api/diagnostics", async () => ({
+    latest: await store.latestDiagnostic(),
+    latestPath: store.diagnosticPath(),
+    current: await buildDiagnosticReport(initialInventory.root, {
+      trigger: "manual",
+      summary: "Current Tourguide diagnostic snapshot.",
+      codex: await runner.status()
+    }, store)
+  }));
+  app.post(
+    "/api/diagnostics/client",
+    async (request, reply) => {
+      const message = request.body?.message?.trim();
+      if (!message) return reply.code(400).send({ error: "A browser error message is required." });
+      const error51 = new Error(message);
+      if (request.body.stack) error51.stack = request.body.stack;
+      const captured = await captureDiagnostic(initialInventory.root, {
+        trigger: "browser",
+        summary: "The Tourguide browser application crashed.",
+        error: error51,
+        context: {
+          componentStack: request.body.componentStack,
+          url: request.body.url,
+          userAgent: request.body.userAgent
+        }
+      }, store);
+      return reply.code(201).send(captured);
+    }
+  );
+  app.get("/api/bootstrap", bootstrap);
+  app.get("/api/project", bootstrap);
+  app.get("/api/refs", async () => await listRepositoryRefs(initialInventory.root));
+  app.get("/api/codex", async () => await runner.status());
   app.get("/api/tour", async () => await store.current());
   app.get("/api/source", async (request, reply) => {
+    const tour = await store.current();
+    const revision = tour?.anchor.commit ?? initialInventory.head;
+    const inventory = await inspectRepositoryAt(initialInventory.root, revision);
     const path2 = request.query.path;
     if (!path2 || !inventory.trackedFiles.includes(path2)) return reply.code(404).send({ error: "Unknown tracked source path" });
-    const content = request.query.view === "working" ? await readWorkingFile(inventory.root, path2).catch(() => readHeadFile(inventory.root, path2)) : await readHeadFile(inventory.root, path2);
-    return { path: path2, view: request.query.view === "working" ? "working" : "head", content, dirty: inventory.dirtyFiles.includes(path2) };
+    const content = request.query.view === "working" ? await readWorkingFile(initialInventory.root, path2).catch(() => readRevisionFile(initialInventory.root, revision, path2)) : await readRevisionFile(initialInventory.root, revision, path2);
+    return {
+      path: path2,
+      revision,
+      view: request.query.view === "working" ? "working" : "selected",
+      content,
+      dirty: inventory.dirtyFiles.includes(path2)
+    };
   });
   app.post("/api/preferences", async (request) => {
     const value = PreferencesSchema.parse(request.body);
@@ -67014,19 +68836,126 @@ async function startWebServer(start, port = 0) {
     await store.saveProgress(value);
     return value;
   });
-  app.post("/api/tour", async (request) => {
+  app.post("/api/tour", async (request, reply) => {
     const value = TourSnapshotSchema.parse(request.body);
+    const report = await validateSnapshot(value, initialInventory.root);
+    if (!report.valid) return reply.code(400).send({ error: "Tour is not publishable.", report });
     await store.publish(value);
-    return { ok: true, id: value.id };
+    return { ok: true, id: value.id, warnings: report.warnings };
+  });
+  app.get("/api/generation/events", async (request) => {
+    const job = await store.generationJob();
+    if (!job) return { job: void 0, events: [] };
+    const after = Number(request.query.after ?? 0);
+    const events = (await store.generationEvents(job.id)).filter((event) => event.id > after);
+    return { job, events, tour: await store.current() };
+  });
+  app.post("/api/generation", async (request, reply) => {
+    const goal = request.body?.goal?.trim();
+    if (!goal) return reply.code(400).send({ error: "Describe what you want to learn or accomplish." });
+    try {
+      const preferences = PreferencesSchema.parse({
+        ...await store.preferences(),
+        goals: [goal],
+        priorities: request.body.priorities ?? []
+      });
+      await store.savePreferences(preferences);
+      const model = request.body.model ?? options.model;
+      const job = await generator.start({
+        ref: request.body.ref ?? initialInventory.ref,
+        goal,
+        priorities: preferences.priorities,
+        ...model ? { model } : {}
+      });
+      return reply.code(202).send(job);
+    } catch (error51) {
+      return reply.code(400).send({ error: errorMessage(error51) });
+    }
+  });
+  app.post("/api/generation/cancel", async (_request, reply) => {
+    try {
+      await generator.cancel();
+      return { ok: true };
+    } catch (error51) {
+      return reply.code(400).send({ error: errorMessage(error51) });
+    }
   });
   app.post("/api/run", async (request, reply) => {
-    const recipe = request.body?.recipeId ? findRecipe(await store.current(), request.body.recipeId) : void 0;
-    if (!recipe) return reply.code(404).send({ error: "Unknown recipe" });
+    const tour = await store.current();
+    const recipe = request.body?.pageId && request.body.recipeId ? findRecipe(tour, request.body.pageId, request.body.recipeId) : void 0;
+    if (!recipe || !tour) return reply.code(404).send({ error: "Unknown recipe" });
     try {
-      return await runRecipe(inventory.root, recipe, request.body.trusted === true, request.body.inputs ?? {});
+      return await runRecipe(
+        initialInventory.root,
+        recipe,
+        request.body.trusted === true,
+        request.body.inputs ?? {},
+        tour.anchor.commit
+      );
     } catch (error51) {
-      return reply.code(400).send({ error: error51 instanceof Error ? error51.message : String(error51) });
+      return reply.code(400).send({ error: errorMessage(error51) });
     }
+  });
+  app.post("/api/exercises", async (request, reply) => {
+    const tour = await store.current();
+    const page = request.body?.pageId ? findPage(tour, request.body.pageId) : void 0;
+    if (!tour || !page) return reply.code(404).send({ error: "Unknown exercise page" });
+    try {
+      return await exercises.create(tour, page);
+    } catch (error51) {
+      return reply.code(400).send({ error: errorMessage(error51) });
+    }
+  });
+  app.get("/api/exercises/:id/files", async (request, reply) => {
+    try {
+      return { files: await exercises.files(request.params.id) };
+    } catch (error51) {
+      return reply.code(404).send({ error: errorMessage(error51) });
+    }
+  });
+  app.put("/api/exercises/:id/files", async (request, reply) => {
+    if (typeof request.body?.path !== "string" || typeof request.body.content !== "string") {
+      return reply.code(400).send({ error: "Path and content are required." });
+    }
+    try {
+      return await exercises.write(request.params.id, request.body.path, request.body.content);
+    } catch (error51) {
+      return reply.code(400).send({ error: errorMessage(error51) });
+    }
+  });
+  app.post("/api/exercises/:id/run", async (request, reply) => {
+    const tour = await store.current();
+    const page = request.body?.pageId ? findPage(tour, request.body.pageId) : void 0;
+    if (!tour || !page) return reply.code(404).send({ error: "Unknown exercise page" });
+    try {
+      return await exercises.run(
+        request.params.id,
+        tour,
+        page,
+        request.body.action ?? "verify",
+        request.body.trusted === true
+      );
+    } catch (error51) {
+      return reply.code(400).send({ error: errorMessage(error51) });
+    }
+  });
+  app.get("/api/exercises/:id/patch", async (request, reply) => {
+    try {
+      return { patch: await exercises.patch(request.params.id) };
+    } catch (error51) {
+      return reply.code(404).send({ error: errorMessage(error51) });
+    }
+  });
+  app.post("/api/exercises/:id/reset", async (request, reply) => {
+    try {
+      return await exercises.reset(request.params.id);
+    } catch (error51) {
+      return reply.code(400).send({ error: errorMessage(error51) });
+    }
+  });
+  app.delete("/api/exercises/:id", async (request) => {
+    await exercises.remove(request.params.id);
+    return { ok: true };
   });
   const webRoot = staticDirectory();
   await app.register(import_static.default, { root: webRoot, prefix: "/" });
@@ -67050,65 +68979,36 @@ function result(value) {
     structuredContent: value
   };
 }
-async function validationErrors(draft, root) {
-  const ids = new Set(draft.lessons.map((lesson) => lesson.id));
-  const errors = [];
-  if (draft.tracks.length === 0) errors.push("Snapshot has no tracks.");
-  if (draft.lessons.length === 0) errors.push("Snapshot has no lessons.");
-  if (ids.size !== draft.lessons.length) errors.push("Lesson IDs must be unique.");
-  if (new Set(draft.tracks.map((track) => track.id)).size !== draft.tracks.length) errors.push("Track IDs must be unique.");
-  if (new Set(draft.tracks.map((track) => track.priority)).size !== draft.tracks.length) errors.push("Track priorities must be unique.");
-  if (draft.tracks[0]?.kind !== "core" || draft.tracks[0]?.priority !== 0) errors.push("The first track must be the core track at priority 0.");
-  if (draft.tracks.some((track, index) => index > 0 && track.priority <= draft.tracks[index - 1].priority)) errors.push("Tracks must be ordered by ascending priority.");
-  const assignments = /* @__PURE__ */ new Map();
-  for (const track of draft.tracks) {
-    for (const id of track.lessonIds) {
-      if (!ids.has(id)) errors.push(`Track ${track.id} references missing lesson ${id}.`);
-      assignments.set(id, (assignments.get(id) ?? 0) + 1);
+async function buildRefreshDraft(root, current, ref) {
+  const inventory = await inspectRepositoryAt(root, ref);
+  const freshness = await assessFreshness(root, current, inventory.head);
+  const stalePages = new Set(freshness.stalePageIds);
+  const staleModules = new Set(freshness.staleModuleIds);
+  const refreshEvidence = async (evidence) => {
+    if (!evidence.path) return { ...evidence, revision: inventory.head };
+    try {
+      const content = await readRevisionFile(root, inventory.head, evidence.path);
+      return { ...evidence, revision: inventory.head, contentHash: contentHash(content), validated: true };
+    } catch {
+      const { contentHash: _contentHash, ...rest } = evidence;
+      return { ...rest, revision: inventory.head, validated: false };
     }
-  }
-  for (const lesson of draft.lessons) {
-    if (lesson.status !== "ready") errors.push(`Lesson ${lesson.id} must be ready before publication.`);
-    if (assignments.get(lesson.id) !== 1) errors.push(`Lesson ${lesson.id} must belong to exactly one track.`);
-    if (lesson.narrative.split(/\s+/).length > 350) errors.push(`Lesson ${lesson.id} exceeds 350 narrative words.`);
-    for (const prerequisite of lesson.prerequisites) {
-      if (!ids.has(prerequisite)) errors.push(`Lesson ${lesson.id} has missing prerequisite ${prerequisite}.`);
-      if (prerequisite === lesson.id) errors.push(`Lesson ${lesson.id} cannot depend on itself.`);
-    }
-    if (lesson.status === "ready" && lesson.evidence.some((evidence) => !evidence.validated && evidence.kind !== "inference")) {
-      errors.push(`Ready lesson ${lesson.id} contains unvalidated evidence.`);
-    }
-    for (const interaction of lesson.interactions) {
-      if (interaction.type === "command" && !interaction.recipe.expected) errors.push(`Command recipe ${interaction.recipe.id} needs an expected observation.`);
-      if (interaction.type === "source" && interaction.editable) errors.push(`Source interaction in ${lesson.id} cannot be editable; use typed command inputs for experiments.`);
-    }
-    for (const evidence of lesson.evidence.filter((item) => item.path)) {
-      if (evidence.revision !== draft.head) errors.push(`Evidence ${evidence.id} must anchor to snapshot HEAD ${draft.head}.`);
-      if (!evidence.contentHash) {
-        errors.push(`Evidence ${evidence.id} needs a content hash from read_evidence.`);
-        continue;
-      }
-      try {
-        const content = await readRevisionFile(root, draft.head, evidence.path);
-        if (contentHash(content) !== evidence.contentHash) errors.push(`Evidence ${evidence.id} content hash does not match ${evidence.path}.`);
-      } catch {
-        errors.push(`Evidence ${evidence.id} cannot read tracked path ${evidence.path} at snapshot HEAD.`);
-      }
-    }
-  }
-  const visiting = /* @__PURE__ */ new Set();
-  const visited = /* @__PURE__ */ new Set();
-  const cycle = (id) => {
-    if (visiting.has(id)) return true;
-    if (visited.has(id)) return false;
-    visiting.add(id);
-    const found = (draft.dependencies[id] ?? []).some(cycle);
-    visiting.delete(id);
-    visited.add(id);
-    return found;
   };
-  if (draft.lessons.some((lesson) => cycle(lesson.id))) errors.push("Lesson prerequisites must not contain a cycle.");
-  return errors;
+  const pages = await Promise.all(current.pages.map(async (page) => ({
+    ...page,
+    status: stalePages.has(page.id) ? "stale" : page.status,
+    evidence: await Promise.all(page.evidence.map(refreshEvidence))
+  })));
+  const snapshot = TourSnapshotSchema.parse({
+    ...current,
+    id: randomUUID8(),
+    anchor: { ref: inventory.ref, commit: inventory.head },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    status: "draft",
+    modules: current.modules.map((module) => staleModules.has(module.id) ? { ...module, status: "stale" } : module),
+    pages
+  });
+  return { snapshot, freshness };
 }
 async function startMcpServer(start) {
   let root;
@@ -67119,154 +69019,164 @@ async function startMcpServer(start) {
       store = new TourStore(root);
       await store.initialize();
     }
-    if (!root || !store) throw new Error("Call inspect_project with the target repository's absolute path first.");
+    if (!root || !store) throw new Error("Call inspect_project with the target repository path first.");
     return { root, store };
   };
   if (start) await context(start);
   let web;
-  const server = new McpServer({ name: "tourguide", version: "0.1.0" });
-  server.tool("inspect_project", "Select and inspect a Git repository using a bounded deterministic shallow scan.", {
-    path: external_exports.string().describe("Absolute path within the target Git repository.")
-  }, async ({ path: path2 }) => {
+  const server = new McpServer({ name: "tourguide", version: "0.2.0" });
+  server.tool("inspect_project", "Select and inspect a Git repository at a branch, tag, or commit.", {
+    path: external_exports.string(),
+    ref: external_exports.string().default("HEAD")
+  }, async ({ path: path2, ref }) => {
     const selected = await context(path2);
-    return result(await inspectRepository(selected.root));
+    return result(await inspectRepositoryAt(selected.root, ref));
   });
-  server.tool("collect_priorities", "Read or save ordered learning priorities and multiple learner goals.", {
+  server.tool("collect_priorities", "Read or save ordered learning priorities and learner goals.", {
     priorities: external_exports.array(external_exports.string()).optional(),
     goals: external_exports.array(external_exports.string()).optional(),
     allowCodexAdapter: external_exports.boolean().optional()
   }, async (input) => {
     const selected = await context();
-    const current = await selected.store.preferences();
-    const next = PreferencesSchema.parse({ ...current, ...input });
+    const next = PreferencesSchema.parse({ ...await selected.store.preferences(), ...input });
     await selected.store.savePreferences(next);
     return result(next);
   });
-  server.tool("begin_snapshot", "Begin a versioned Tourguide draft anchored to committed HEAD.", {
-    projectName: external_exports.string().optional()
-  }, async ({ projectName }) => {
+  server.tool("begin_snapshot", "Begin a v2 Tourguide draft anchored to a selected Git ref.", {
+    projectName: external_exports.string().optional(),
+    ref: external_exports.string().default("HEAD")
+  }, async ({ projectName, ref }) => {
     const selected = await context();
-    const inventory = await inspectRepository(selected.root);
+    const inventory = await inspectRepositoryAt(selected.root, ref);
     const snapshot = TourSnapshotSchema.parse({
-      schemaVersion: 1,
-      id: randomUUID4(),
+      schemaVersion: 2,
+      id: randomUUID8(),
       projectName: projectName ?? inventory.name,
       repositoryRoot: selected.root,
-      head: inventory.head,
-      branch: inventory.branch,
+      anchor: { ref: inventory.ref, commit: inventory.head },
       generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
       generator: "tourguide-agent",
+      promptVersion: 2,
       status: "draft",
       tracks: [],
-      lessons: [],
+      modules: [],
+      pages: [],
+      coverage: [],
       dependencies: {}
     });
     await selected.store.saveDraft(snapshot);
     return result(snapshot);
   });
-  server.tool("begin_refresh", "Clone the published tour onto current HEAD, re-anchor unchanged evidence, and mark only affected lessons stale.", {}, async () => {
+  server.tool("begin_refresh", "Clone the published tour onto a selected ref and mark affected pages and modules stale.", {
+    ref: external_exports.string().default("HEAD")
+  }, async ({ ref }) => {
     const selected = await context();
     const current = await selected.store.current();
     if (!current) throw new Error("No published snapshot exists. Use begin_snapshot instead.");
-    const inventory = await inspectRepository(selected.root);
-    const freshness = await assessFreshness(selected.root, current, inventory.head);
-    const stale = new Set(freshness.staleLessonIds);
-    const snapshot = TourSnapshotSchema.parse({
-      ...current,
-      id: randomUUID4(),
-      head: inventory.head,
-      branch: inventory.branch,
-      generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      status: "draft",
-      lessons: current.lessons.map((lesson) => stale.has(lesson.id) ? { ...lesson, status: "stale" } : { ...lesson, evidence: lesson.evidence.map((evidence) => evidence.path ? { ...evidence, revision: inventory.head } : evidence) })
-    });
+    const { snapshot, freshness } = await buildRefreshDraft(selected.root, current, ref);
     await selected.store.saveDraft(snapshot);
     return result({ snapshotId: snapshot.id, freshness, snapshot });
   });
-  server.tool("write_outline", "Replace the track outline of a Tourguide draft.", {
+  server.tool("write_outline", "Replace tracks, modules, and coverage in a Tourguide draft.", {
     snapshotId: external_exports.string(),
-    tracks: external_exports.array(TrackSchema)
-  }, async ({ snapshotId, tracks }) => {
+    tracks: external_exports.array(TrackSchema),
+    modules: external_exports.array(ModuleSchema),
+    coverage: external_exports.array(CoverageEntrySchema)
+  }, async ({ snapshotId, tracks, modules, coverage }) => {
     const selected = await context();
     const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const next = TourSnapshotSchema.parse({ ...draft, tracks });
+    const next = TourSnapshotSchema.parse({ ...draft, tracks, modules, coverage });
     await selected.store.saveDraft(next);
-    return result({ snapshotId, trackCount: tracks.length });
+    return result({ snapshotId, trackCount: tracks.length, moduleCount: modules.length });
   });
-  server.tool("write_lessons", "Add or replace validated lessons in a Tourguide draft.", {
+  server.tool("write_pages", "Add or replace evidence-backed pages in a Tourguide draft.", {
     snapshotId: external_exports.string(),
-    lessons: external_exports.array(LessonSchema)
-  }, async ({ snapshotId, lessons }) => {
+    pages: external_exports.array(PageSchema)
+  }, async ({ snapshotId, pages }) => {
     const selected = await context();
     const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const replacements = new Map(lessons.map((lesson) => [lesson.id, lesson]));
-    const merged = [...draft.lessons.filter((lesson) => !replacements.has(lesson.id)), ...lessons];
-    const dependencies = Object.fromEntries(merged.map((lesson) => [lesson.id, lesson.prerequisites]));
-    const next = TourSnapshotSchema.parse({ ...draft, lessons: merged, dependencies });
+    const replacements = new Map(pages.map((page) => [page.id, page]));
+    const merged = [...draft.pages.filter((page) => !replacements.has(page.id)), ...pages];
+    const next = TourSnapshotSchema.parse({
+      ...draft,
+      pages: merged,
+      dependencies: Object.fromEntries(merged.map((page) => [page.id, page.prerequisites]))
+    });
     await selected.store.saveDraft(next);
-    return result({ snapshotId, written: lessons.map((lesson) => lesson.id), total: merged.length });
+    return result({ snapshotId, written: pages.map((page) => page.id), total: merged.length });
   });
-  server.tool("validate_snapshot", "Validate lesson references, ordering, and publication readiness.", {
+  server.tool("validate_snapshot", "Validate hierarchy, breadth, evidence, exercises, and publication readiness.", {
+    snapshotId: external_exports.string(),
+    partial: external_exports.boolean().default(false)
+  }, async ({ snapshotId, partial: partial2 }) => {
+    const selected = await context();
+    const draft = await selected.store.loadDraft(snapshotId);
+    if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
+    return result({ ...await validateSnapshot(draft, selected.root, { partial: partial2 }), pageCount: draft.pages.length });
+  });
+  server.tool("publish_snapshot", "Publish a valid complete draft.", {
     snapshotId: external_exports.string()
   }, async ({ snapshotId }) => {
     const selected = await context();
     const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const errors = await validationErrors(draft, selected.root);
-    return result({ valid: errors.length === 0, errors, lessonCount: draft.lessons.length });
-  });
-  server.tool("publish_snapshot", "Publish a valid draft for progressive use in the browser.", {
-    snapshotId: external_exports.string()
-  }, async ({ snapshotId }) => {
-    const selected = await context();
-    const draft = await selected.store.loadDraft(snapshotId);
-    if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const errors = await validationErrors(draft, selected.root);
-    if (errors.length > 0) throw new Error(`Snapshot is not publishable:
-${errors.join("\n")}`);
+    const report = await validateSnapshot(draft, selected.root);
+    if (!report.valid) throw new Error(`Snapshot is not publishable:
+${report.errors.join("\n")}`);
     await selected.store.publish(draft);
-    return result({ published: true, snapshotId });
+    return result({ published: true, snapshotId, warnings: report.warnings });
   });
-  server.tool("probe_recipe", "Run an argv-based lesson recipe through Tourguide's local permission boundary.", {
+  server.tool("probe_recipe", "Run an argv-based page recipe in a disposable worktree at the snapshot commit.", {
+    snapshotId: external_exports.string(),
     recipe: external_exports.any(),
     trusted: external_exports.boolean().default(false),
     inputs: external_exports.record(external_exports.string(), external_exports.string()).default({})
-  }, async ({ recipe, trusted, inputs }) => {
+  }, async ({ snapshotId, recipe, trusted, inputs }) => {
     const selected = await context();
-    return result(await runRecipe(selected.root, recipe, trusted, inputs));
+    const snapshot = await selected.store.snapshot(snapshotId) ?? await selected.store.loadDraft(snapshotId);
+    if (!snapshot) throw new Error(`Unknown snapshot ${snapshotId}`);
+    return result(await runRecipe(selected.root, recipe, trusted, inputs, snapshot.anchor.commit));
   });
-  server.tool("read_evidence", "Read a bounded source excerpt from a specific committed revision and compute its content hash.", {
+  server.tool("read_evidence", "Read a bounded source excerpt from a specific committed revision and compute its hash.", {
     path: external_exports.string(),
-    revision: external_exports.string().optional(),
+    revision: external_exports.string(),
     lineStart: external_exports.number().int().positive().default(1),
     lineEnd: external_exports.number().int().positive().optional()
   }, async ({ path: path2, revision, lineStart, lineEnd }) => {
     const selected = await context();
-    const inventory = await inspectRepository(selected.root);
-    if (!inventory.trackedFiles.includes(path2)) throw new Error(`Not a tracked path: ${path2}`);
-    const anchoredRevision = revision ?? inventory.head;
-    const content = await readRevisionFile(selected.root, anchoredRevision, path2);
+    const content = await readRevisionFile(selected.root, revision, path2);
     const lines = content.split("\n");
     const end = Math.min(lineEnd ?? lineStart + 79, lineStart + 199, lines.length);
     if (end < lineStart) throw new Error("lineEnd must be greater than or equal to lineStart.");
-    return result({ path: path2, revision: anchoredRevision, lineStart, lineEnd: end, contentHash: contentHash(content), validated: true, content: lines.slice(lineStart - 1, end).join("\n") });
+    return result({
+      path: path2,
+      revision,
+      lineStart,
+      lineEnd: end,
+      contentHash: contentHash(content),
+      validated: true,
+      content: lines.slice(lineStart - 1, end).join("\n")
+    });
   });
-  server.tool("assess_freshness", "Compare the published snapshot with current committed HEAD and propagate stale lesson dependencies.", {}, async () => {
+  server.tool("assess_freshness", "Compare the published snapshot with current committed HEAD.", {}, async () => {
     const selected = await context();
     const snapshot = await selected.store.current();
     if (!snapshot) return result({ fresh: false, reason: "No published snapshot" });
-    const inventory = await inspectRepository(selected.root);
+    const inventory = await inspectRepositoryAt(selected.root, "HEAD");
     return result(await assessFreshness(selected.root, snapshot, inventory.head));
   });
-  server.tool("launch_app", "Launch the local Tourguide browser application.", {}, async () => {
+  server.tool("launch_app", "Launch the local Tourguide browser application at a selected Git ref.", {
+    ref: external_exports.string().default("HEAD"),
+    model: external_exports.string().optional()
+  }, async ({ ref, model }) => {
     const selected = await context();
-    web ??= await startWebServer(selected.root);
+    web ??= await startWebServer(selected.root, 0, { ref, ...model ? { model } : {} });
     await open_default(web.url);
-    return result({ url: web.url });
+    return result({ url: web.url, ref });
   });
-  server.tool("get_active_lesson_context", "Return the published tour for contextual learner questions.", {}, async () => {
+  server.tool("get_active_page_context", "Return the current tour and learner preferences for contextual questions.", {}, async () => {
     const selected = await context();
     return result({ tour: await selected.store.current(), preferences: await selected.store.preferences() });
   });
@@ -67274,56 +69184,146 @@ ${errors.join("\n")}`);
 }
 
 // src/cli.ts
-var execFileAsync7 = promisify9(execFile9);
-var usage = "Usage: tourguide <open|serve|status|doctor|clean|mcp> [repository]";
+var execFileAsync10 = promisify12(execFile12);
+var commands = /* @__PURE__ */ new Set(["open", "serve", "status", "doctor", "diagnostics", "clean", "mcp"]);
+var usage = `Usage:
+  tourguide [repository] [--ref <branch|tag|commit>] [--model <model>]
+  tourguide <open|serve|status|doctor|diagnostics|clean|mcp> [repository] [options]
+
+With no command, Tourguide opens the browser for the current directory.`;
+var diagnosticRoot;
+var handlingCrash = false;
+function installCrashHandlers(root) {
+  const handle = async (error51, origin) => {
+    if (handlingCrash) return;
+    handlingCrash = true;
+    const captured = await captureDiagnostic(root, {
+      trigger: "process",
+      summary: `Tourguide terminated after ${origin}.`,
+      error: error51,
+      context: { origin }
+    }).catch(() => void 0);
+    console.error(error51 instanceof Error ? error51.stack ?? error51.message : String(error51));
+    if (captured) console.error(`Diagnostic report: ${captured.path}`);
+    process.exit(1);
+  };
+  process.once("uncaughtException", (error51) => {
+    void handle(error51, "an uncaught exception");
+  });
+  process.once("unhandledRejection", (error51) => {
+    void handle(error51, "an unhandled rejection");
+  });
+}
+function parseArgs(args) {
+  if (args.includes("--help") || args.includes("-h") || args[0] === "help") return void 0;
+  let command = "open";
+  let index = 0;
+  if (args[0] && commands.has(args[0])) {
+    command = args[0];
+    index = 1;
+  }
+  let path2;
+  let ref = "HEAD";
+  let model;
+  while (index < args.length) {
+    const value = args[index];
+    if (value === "--ref") {
+      ref = args[++index] ?? "";
+      if (!ref) throw new Error("--ref requires a branch, tag, or commit.");
+    } else if (value === "--model") {
+      model = args[++index] ?? "";
+      if (!model) throw new Error("--model requires a model name.");
+    } else if (value.startsWith("-")) {
+      throw new Error(`Unknown option: ${value}`);
+    } else if (!path2) {
+      path2 = value;
+    } else {
+      throw new Error(`Unexpected argument: ${value}`);
+    }
+    index += 1;
+  }
+  return { command, path: path2 ?? process.cwd(), ref, ...model ? { model } : {} };
+}
 async function main() {
-  const [command = "open", suppliedPath] = process.argv.slice(2);
-  if (command === "help" || command === "--help" || command === "-h") {
+  const options = parseArgs(process.argv.slice(2));
+  if (!options) {
     console.log(usage);
     return;
   }
-  if (command === "mcp") {
-    await startMcpServer(suppliedPath);
+  if (options.command === "mcp") {
+    await startMcpServer(options.path);
     return;
   }
-  const path2 = suppliedPath ?? process.cwd();
   let root;
   try {
-    root = await findRepositoryRoot(path2);
+    root = await findRepositoryRoot(options.path);
   } catch {
-    console.error(`Tourguide requires a Git repository: ${path2}`);
+    console.error(`Tourguide requires a Git repository: ${options.path}`);
     process.exitCode = 1;
     return;
   }
-  if (command === "status") {
+  diagnosticRoot = root;
+  installCrashHandlers(root);
+  if (options.command === "diagnostics") {
     const store = new TourStore(root);
-    console.log(JSON.stringify({ inventory: await inspectRepository(root), tour: await store.current(), preferences: await store.preferences() }, null, 2));
+    await store.initialize();
+    let report = await store.latestDiagnostic();
+    if (!report) {
+      const job = await store.generationJob();
+      const captured = await captureDiagnostic(root, {
+        trigger: "manual",
+        summary: job?.errorCode ? `Diagnostic snapshot for failed generation: ${job.message}` : "Manual Tourguide diagnostic snapshot.",
+        ...job?.errorCode ? { error: new Error(job.message) } : {},
+        codex: await new CodexExecRunner().status()
+      }, store);
+      report = captured.report;
+    }
+    console.log(formatDiagnosticReport(report));
+    console.error(`Diagnostic report: ${store.diagnosticPath()}`);
     return;
   }
-  if (command === "doctor") {
+  if (options.command === "status") {
+    const store = new TourStore(root);
+    console.log(JSON.stringify({
+      inventory: await inspectRepositoryAt(root, options.ref),
+      tour: await store.current(),
+      generation: await store.generationJob(),
+      preferences: await store.preferences(),
+      codex: await new CodexExecRunner().status()
+    }, null, 2));
+    return;
+  }
+  if (options.command === "doctor") {
+    const codex = await new CodexExecRunner().status();
     const checks = await Promise.all([
       access(root).then(() => ({ name: "repository", ok: true })).catch(() => ({ name: "repository", ok: false })),
       Promise.resolve({ name: "node", ok: Number(process.versions.node.split(".")[0]) >= 22, detail: process.version }),
-      Promise.all([inspectRepository(root), execFileAsync7("git", ["--version"], { encoding: "utf8" })]).then(([inventory, version2]) => ({ name: "git", ok: true, detail: `${version2.stdout.trim()}; HEAD ${inventory.head.slice(0, 8)}` })).catch((error51) => ({ name: "git", ok: false, detail: String(error51) }))
+      Promise.all([
+        inspectRepositoryAt(root, options.ref),
+        execFileAsync10("git", ["--version"], { encoding: "utf8" })
+      ]).then(([inventory, version2]) => ({
+        name: "git",
+        ok: true,
+        detail: `${version2.stdout.trim()}; ${options.ref} ${inventory.head.slice(0, 8)}`
+      })).catch((error51) => ({ name: "git", ok: false, detail: String(error51) })),
+      Promise.resolve({ name: "codex", ok: codex.status === "ready", detail: `${codex.version ?? "not found"}; ${codex.message}` })
     ]);
     console.log(JSON.stringify(checks, null, 2));
     if (checks.some((check2) => !check2.ok)) process.exitCode = 1;
     return;
   }
-  if (command === "clean") {
+  if (options.command === "clean") {
     const store = new TourStore(root);
     await store.cleanGenerated();
     console.log(`Cleaned generated Tourguide data in ${root}`);
     return;
   }
-  if (command !== "open" && command !== "serve") {
-    console.error(usage);
-    process.exitCode = 1;
-    return;
-  }
-  const server = await startWebServer(root);
+  const server = await startWebServer(root, 0, {
+    ref: options.ref,
+    ...options.model ? { model: options.model } : {}
+  });
   console.log(`Tourguide is running at ${server.url}`);
-  if (command === "open") await open_default(server.url);
+  if (options.command === "open") await open_default(server.url);
   const close = async () => {
     await server.close();
     process.exit(0);
@@ -67331,8 +69331,14 @@ async function main() {
   process.on("SIGINT", close);
   process.on("SIGTERM", close);
 }
-main().catch((error51) => {
+main().catch(async (error51) => {
+  const captured = diagnosticRoot ? await captureDiagnostic(diagnosticRoot, {
+    trigger: "startup",
+    summary: "Tourguide failed to start.",
+    error: error51
+  }).catch(() => void 0) : void 0;
   console.error(error51 instanceof Error ? error51.message : error51);
+  if (captured) console.error(`Diagnostic report: ${captured.path}`);
   process.exitCode = 1;
 });
 /*! Bundled license information:

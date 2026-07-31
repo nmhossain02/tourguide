@@ -22,6 +22,40 @@ async function git(root: string, args: string[]): Promise<string> {
   return stdout;
 }
 
+export interface RepositoryRef {
+  name: string;
+  commit: string;
+  kind: "branch" | "tag" | "remote";
+}
+
+export async function resolveRevision(root: string, ref = "HEAD"): Promise<string> {
+  const output = await git(root, ["rev-parse", "--verify", "--end-of-options", `${ref}^{commit}`]);
+  return output.trim();
+}
+
+export async function listRepositoryRefs(root: string): Promise<RepositoryRef[]> {
+  const output = await git(root, [
+    "for-each-ref",
+    "--format=%(refname)%09%(objectname)",
+    "refs/heads",
+    "refs/tags",
+    "refs/remotes",
+  ]);
+  const refs: RepositoryRef[] = [];
+  for (const line of output.split("\n")) {
+    const [name = "", object = ""] = line.split("\t");
+    if (!name || !object) continue;
+    const kind = name.startsWith("refs/heads/")
+      ? "branch"
+      : name.startsWith("refs/tags/")
+        ? "tag"
+        : "remote";
+    const commit = await resolveRevision(root, name).catch(() => object);
+    refs.push({ name, commit, kind });
+  }
+  return refs.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+}
+
 export async function changedFilesBetween(root: string, from: string, to = "HEAD"): Promise<string[]> {
   if (from === to) return [];
   const output = await git(root, ["diff", "--name-only", "-z", `${from}..${to}`]);
@@ -70,25 +104,24 @@ function detectAreas(files: string[]) {
   });
 }
 
-async function rootCommands(root: string, files: string[]): Promise<Record<string, string>> {
+async function rootCommands(root: string, revision: string, files: string[]): Promise<Record<string, string>> {
   if (!files.includes("package.json")) return {};
   try {
-    const pkg = JSON.parse(await readHeadFile(root, "package.json")) as { scripts?: Record<string, string> };
+    const pkg = JSON.parse(await readRevisionFile(root, revision, "package.json")) as { scripts?: Record<string, string> };
     return pkg.scripts ?? {};
   } catch {
     return {};
   }
 }
 
-export async function inspectRepository(start = process.cwd()): Promise<ProjectInventory> {
+export async function inspectRepositoryAt(start = process.cwd(), requestedRef = "HEAD"): Promise<ProjectInventory> {
   const root = await findRepositoryRoot(start);
-  await git(root, ["rev-parse", "--verify", "HEAD"]).catch(() => {
+  const revision = await resolveRevision(root, requestedRef).catch(() => {
     throw new Error(`Tourguide requires at least one commit in ${root}. Commit the repository's initial state and try again.`);
   });
-  const [head, branch, fileOutput, statusOutput] = await Promise.all([
-    git(root, ["rev-parse", "HEAD"]),
+  const [branch, fileOutput, statusOutput] = await Promise.all([
     git(root, ["branch", "--show-current"]),
-    git(root, ["ls-files", "-z"]),
+    git(root, ["ls-tree", "-r", "--name-only", "-z", revision]),
     git(root, ["status", "--porcelain=v1", "-z"]),
   ]);
   const trackedFiles = fileOutput.split("\0").filter(Boolean);
@@ -103,13 +136,19 @@ export async function inspectRepository(start = process.cwd()): Promise<ProjectI
     schemaVersion: 1,
     root,
     name: basename(root),
-    head: head.trim(),
+    head: revision,
     branch: branch.trim() || "detached",
+    ref: requestedRef,
     trackedFileCount: trackedFiles.length,
     trackedFiles,
+    excludedFiles: [],
     dirtyFiles,
     manifests,
-    commands: await rootCommands(root, trackedFiles),
+    commands: await rootCommands(root, revision, trackedFiles),
     areas: detectAreas(trackedFiles),
   });
+}
+
+export async function inspectRepository(start = process.cwd()): Promise<ProjectInventory> {
+  return inspectRepositoryAt(start, "HEAD");
 }

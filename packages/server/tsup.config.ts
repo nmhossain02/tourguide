@@ -8,9 +8,9 @@ export default defineConfig({
   bundle: true,
   splitting: false,
   sourcemap: false,
-  clean: false,
+  clean: true,
   noExternal: [/.*/],
-  outDir: "../../plugins/tourguide/dist",
+  outDir: "dist",
   outExtension: () => ({ js: ".mjs" }),
   banner: { js: "#!/usr/bin/env node\nimport { createRequire as __tourguideCreateRequire } from 'node:module'; const require = __tourguideCreateRequire(import.meta.url);" },
 });

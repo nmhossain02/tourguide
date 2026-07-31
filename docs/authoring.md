@@ -1,23 +1,42 @@
 # Authoring contract
 
-A useful Tourguide lesson should teach one observable idea in roughly three to seven minutes. It must include at least one interaction and should end with a learner-checkable observation.
+Tourguide authors a curriculum before it writes prose. The normal standalone flow asks Codex for a coverage map and module outline, then resumes the same thread to draft complete modules.
 
-Evidence is typed as source, config, runtime, history, documentation, or explicit inference. Ready lessons may not present unvalidated non-inference evidence. Source evidence must use `read_evidence` and include its repository-relative path, authored revision, and full-file content hash.
+## Curriculum
 
-Command interactions are argv arrays, never shell strings. Authors declare writes, network reach, secrets, containers, external systems, timeout, and lifecycle. Keep default recipes offline and self-contained. A recipe with external capabilities is unusable until the learner opts into trusted mode. Every recipe runs against a detached disposable worktree with a temporary HOME; actual changed paths and undeclared writes are reported before the workspace is removed.
+- One core track is priority 0. Add one selected track for the learner's task-shaped goal when useful.
+- Tracks contain modules; modules contain ordered pages.
+- A normal module has 6–15 pages and develops one capability or subsystem through context, structure, representative flow, behavior, failure, change, and recap.
+- Every applicable core capability, including orientation, setup, run, architecture, data/state, test, debug, change workflow, and delivery/operations, is covered or given an explicit `not-applicable`, `blocked`, or `omitted` reason.
+- Each normal module has a demonstration and synthesis exercise, or a recorded safe fallback.
 
-The recommended MCP sequence is:
+## Pages
 
-1. `inspect_project` with the repository's absolute path
-2. `collect_priorities`; if empty, `launch_app`, let the learner save choices, then read again
-3. `begin_snapshot`
+A page teaches one observable step in 1–5 minutes. Narrative is normally 40–180 words and cannot exceed 350. Every page contains an interaction; concept, walkthrough, demo, and exercise pages use source or runtime evidence. Adjacent pages should follow a recurring representative request, command, job, data path, or change.
+
+Evidence is source, config, runtime, history, documentation, or explicit inference. A ready page cannot present unvalidated non-inference evidence. Source evidence uses a repository-relative path, selected revision, useful line range or symbol, and full-file content hash.
+
+## Runtime and exercises
+
+Command interactions use executable-plus-argv, not shell strings. Authors declare writes, network reach, secrets, containers, external systems, timeout, and expected observation. A demo asks the learner to predict and vary meaningful behavior.
+
+Exercises use `observe`, `trace`, `diagnose`, `patch`, or `design`. Each defines an observable task, allowed paths or inputs, progressive hints, expected observation, reset behavior, and verification where feasible. Patch exercises can edit only named tracked text files in a disposable worktree.
+
+Unavailable prerequisites produce an honest blocked experiment or safe diagnostic, never fabricated output.
+
+## MCP fallback
+
+The Codex plugin retains manual authoring tools for surgical refreshes, deeper tracks, and alternative clients:
+
+1. `inspect_project`
+2. `collect_priorities`
+3. `begin_snapshot` or `begin_refresh`
 4. `write_outline`
-5. `write_lessons` in small batches
-6. `probe_recipe` for bounded runtime claims
-7. `validate_snapshot`
-8. `publish_snapshot`
-9. `launch_app` if it is not already open
+5. `read_evidence`
+6. `write_pages` one module at a time
+7. `probe_recipe` where runtime evidence matters
+8. `validate_snapshot`
+9. `publish_snapshot`
+10. `launch_app`
 
-Publication is progressive: keep a coherent local-development track usable while optional areas deepen. Do not claim undocumented product intent as fact.
-
-For refreshes, use `assess_freshness` followed by `begin_refresh`. The refresh draft advances unchanged evidence to the new HEAD only when Git proves those paths unchanged, and marks affected or unverifiable lessons stale. Publication requires ready lessons, one track assignment per lesson, an acyclic prerequisite graph, and a core priority-0 track followed by unique ascending priorities.
+The same v2 validator and browser are used by standalone and MCP-authored tours.

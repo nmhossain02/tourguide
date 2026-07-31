@@ -1,4 +1,0 @@
-interface:
-  display_name: "Tourguide"
-  short_description: "Build interactive tours for unfamiliar codebases"
-  default_prompt: "Use $tourguide to teach me how to develop this repository locally."
