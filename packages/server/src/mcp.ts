@@ -3,7 +3,9 @@ import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  LessonSchema,
+  CoverageEntrySchema,
+  ModuleSchema,
+  PageSchema,
   PreferencesSchema,
   TourSnapshotSchema,
   TourStore,
@@ -11,9 +13,10 @@ import {
   assessFreshness,
   contentHash,
   findRepositoryRoot,
-  inspectRepository,
+  inspectRepositoryAt,
   readRevisionFile,
   runRecipe,
+  validateSnapshot,
 } from "@tourguide/core";
 import open from "open";
 import { z } from "zod";
@@ -27,67 +30,6 @@ function result(value: unknown) {
   };
 }
 
-async function validationErrors(draft: z.output<typeof TourSnapshotSchema>, root: string): Promise<string[]> {
-  const ids = new Set(draft.lessons.map((lesson) => lesson.id));
-  const errors: string[] = [];
-  if (draft.tracks.length === 0) errors.push("Snapshot has no tracks.");
-  if (draft.lessons.length === 0) errors.push("Snapshot has no lessons.");
-  if (ids.size !== draft.lessons.length) errors.push("Lesson IDs must be unique.");
-  if (new Set(draft.tracks.map((track) => track.id)).size !== draft.tracks.length) errors.push("Track IDs must be unique.");
-  if (new Set(draft.tracks.map((track) => track.priority)).size !== draft.tracks.length) errors.push("Track priorities must be unique.");
-  if (draft.tracks[0]?.kind !== "core" || draft.tracks[0]?.priority !== 0) errors.push("The first track must be the core track at priority 0.");
-  if (draft.tracks.some((track, index) => index > 0 && track.priority <= draft.tracks[index - 1]!.priority)) errors.push("Tracks must be ordered by ascending priority.");
-  const assignments = new Map<string, number>();
-  for (const track of draft.tracks) {
-    for (const id of track.lessonIds) {
-      if (!ids.has(id)) errors.push(`Track ${track.id} references missing lesson ${id}.`);
-      assignments.set(id, (assignments.get(id) ?? 0) + 1);
-    }
-  }
-  for (const lesson of draft.lessons) {
-    if (lesson.status !== "ready") errors.push(`Lesson ${lesson.id} must be ready before publication.`);
-    if (assignments.get(lesson.id) !== 1) errors.push(`Lesson ${lesson.id} must belong to exactly one track.`);
-    if (lesson.narrative.split(/\s+/).length > 350) errors.push(`Lesson ${lesson.id} exceeds 350 narrative words.`);
-    for (const prerequisite of lesson.prerequisites) {
-      if (!ids.has(prerequisite)) errors.push(`Lesson ${lesson.id} has missing prerequisite ${prerequisite}.`);
-      if (prerequisite === lesson.id) errors.push(`Lesson ${lesson.id} cannot depend on itself.`);
-    }
-    if (lesson.status === "ready" && lesson.evidence.some((evidence) => !evidence.validated && evidence.kind !== "inference")) {
-      errors.push(`Ready lesson ${lesson.id} contains unvalidated evidence.`);
-    }
-    for (const interaction of lesson.interactions) {
-      if (interaction.type === "command" && !interaction.recipe.expected) errors.push(`Command recipe ${interaction.recipe.id} needs an expected observation.`);
-      if (interaction.type === "source" && interaction.editable) errors.push(`Source interaction in ${lesson.id} cannot be editable; use typed command inputs for experiments.`);
-    }
-    for (const evidence of lesson.evidence.filter((item) => item.path)) {
-      if (evidence.revision !== draft.head) errors.push(`Evidence ${evidence.id} must anchor to snapshot HEAD ${draft.head}.`);
-      if (!evidence.contentHash) {
-        errors.push(`Evidence ${evidence.id} needs a content hash from read_evidence.`);
-        continue;
-      }
-      try {
-        const content = await readRevisionFile(root, draft.head, evidence.path!);
-        if (contentHash(content) !== evidence.contentHash) errors.push(`Evidence ${evidence.id} content hash does not match ${evidence.path}.`);
-      } catch {
-        errors.push(`Evidence ${evidence.id} cannot read tracked path ${evidence.path} at snapshot HEAD.`);
-      }
-    }
-  }
-  const visiting = new Set<string>();
-  const visited = new Set<string>();
-  const cycle = (id: string): boolean => {
-    if (visiting.has(id)) return true;
-    if (visited.has(id)) return false;
-    visiting.add(id);
-    const found = (draft.dependencies[id] ?? []).some(cycle);
-    visiting.delete(id);
-    visited.add(id);
-    return found;
-  };
-  if (draft.lessons.some((lesson) => cycle(lesson.id))) errors.push("Lesson prerequisites must not contain a cycle.");
-  return errors;
-}
-
 export async function startMcpServer(start?: string): Promise<void> {
   let root: string | undefined;
   let store: TourStore | undefined;
@@ -97,168 +39,197 @@ export async function startMcpServer(start?: string): Promise<void> {
       store = new TourStore(root);
       await store.initialize();
     }
-    if (!root || !store) throw new Error("Call inspect_project with the target repository's absolute path first.");
+    if (!root || !store) throw new Error("Call inspect_project with the target repository path first.");
     return { root, store };
   };
   if (start) await context(start);
   let web: WebServerHandle | undefined;
-  const server = new McpServer({ name: "tourguide", version: "0.1.0" });
+  const server = new McpServer({ name: "tourguide", version: "0.2.0" });
 
-  server.tool("inspect_project", "Select and inspect a Git repository using a bounded deterministic shallow scan.", {
-    path: z.string().describe("Absolute path within the target Git repository."),
-  }, async ({ path }) => {
+  server.tool("inspect_project", "Select and inspect a Git repository at a branch, tag, or commit.", {
+    path: z.string(),
+    ref: z.string().default("HEAD"),
+  }, async ({ path, ref }) => {
     const selected = await context(path);
-    return result(await inspectRepository(selected.root));
+    return result(await inspectRepositoryAt(selected.root, ref));
   });
 
-  server.tool("collect_priorities", "Read or save ordered learning priorities and multiple learner goals.", {
+  server.tool("collect_priorities", "Read or save ordered learning priorities and learner goals.", {
     priorities: z.array(z.string()).optional(),
     goals: z.array(z.string()).optional(),
     allowCodexAdapter: z.boolean().optional(),
   }, async (input) => {
     const selected = await context();
-    const current = await selected.store.preferences();
-    const next = PreferencesSchema.parse({ ...current, ...input });
+    const next = PreferencesSchema.parse({ ...(await selected.store.preferences()), ...input });
     await selected.store.savePreferences(next);
     return result(next);
   });
 
-  server.tool("begin_snapshot", "Begin a versioned Tourguide draft anchored to committed HEAD.", {
+  server.tool("begin_snapshot", "Begin a v2 Tourguide draft anchored to a selected Git ref.", {
     projectName: z.string().optional(),
-  }, async ({ projectName }) => {
+    ref: z.string().default("HEAD"),
+  }, async ({ projectName, ref }) => {
     const selected = await context();
-    const inventory = await inspectRepository(selected.root);
+    const inventory = await inspectRepositoryAt(selected.root, ref);
     const snapshot = TourSnapshotSchema.parse({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: randomUUID(),
       projectName: projectName ?? inventory.name,
       repositoryRoot: selected.root,
-      head: inventory.head,
-      branch: inventory.branch,
+      anchor: { ref: inventory.ref, commit: inventory.head },
       generatedAt: new Date().toISOString(),
       generator: "tourguide-agent",
+      promptVersion: 2,
       status: "draft",
       tracks: [],
-      lessons: [],
+      modules: [],
+      pages: [],
+      coverage: [],
       dependencies: {},
     });
     await selected.store.saveDraft(snapshot);
     return result(snapshot);
   });
 
-  server.tool("begin_refresh", "Clone the published tour onto current HEAD, re-anchor unchanged evidence, and mark only affected lessons stale.", {}, async () => {
+  server.tool("begin_refresh", "Clone the published tour onto a selected ref and mark affected pages and modules stale.", {
+    ref: z.string().default("HEAD"),
+  }, async ({ ref }) => {
     const selected = await context();
     const current = await selected.store.current();
     if (!current) throw new Error("No published snapshot exists. Use begin_snapshot instead.");
-    const inventory = await inspectRepository(selected.root);
+    const inventory = await inspectRepositoryAt(selected.root, ref);
     const freshness = await assessFreshness(selected.root, current, inventory.head);
-    const stale = new Set(freshness.staleLessonIds);
+    const stalePages = new Set(freshness.stalePageIds);
+    const staleModules = new Set(freshness.staleModuleIds);
+    const pages = await Promise.all(current.pages.map(async (page) => ({
+      ...page,
+      status: stalePages.has(page.id) ? "stale" as const : page.status,
+      evidence: await Promise.all(page.evidence.map(async (evidence) => {
+        if (!evidence.path) return { ...evidence, revision: inventory.head };
+        const content = await readRevisionFile(selected.root, inventory.head, evidence.path);
+        return { ...evidence, revision: inventory.head, contentHash: contentHash(content), validated: true };
+      })),
+    })));
     const snapshot = TourSnapshotSchema.parse({
       ...current,
       id: randomUUID(),
-      head: inventory.head,
-      branch: inventory.branch,
+      anchor: { ref: inventory.ref, commit: inventory.head },
       generatedAt: new Date().toISOString(),
       status: "draft",
-      lessons: current.lessons.map((lesson) => stale.has(lesson.id)
-        ? { ...lesson, status: "stale" }
-        : { ...lesson, evidence: lesson.evidence.map((evidence) => evidence.path ? { ...evidence, revision: inventory.head } : evidence) }),
+      modules: current.modules.map((module) => staleModules.has(module.id) ? { ...module, status: "stale" } : module),
+      pages,
     });
     await selected.store.saveDraft(snapshot);
     return result({ snapshotId: snapshot.id, freshness, snapshot });
   });
 
-  server.tool("write_outline", "Replace the track outline of a Tourguide draft.", {
+  server.tool("write_outline", "Replace tracks, modules, and coverage in a Tourguide draft.", {
     snapshotId: z.string(),
     tracks: z.array(TrackSchema),
-  }, async ({ snapshotId, tracks }) => {
+    modules: z.array(ModuleSchema),
+    coverage: z.array(CoverageEntrySchema),
+  }, async ({ snapshotId, tracks, modules, coverage }) => {
     const selected = await context();
     const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const next = TourSnapshotSchema.parse({ ...draft, tracks });
+    const next = TourSnapshotSchema.parse({ ...draft, tracks, modules, coverage });
     await selected.store.saveDraft(next);
-    return result({ snapshotId, trackCount: tracks.length });
+    return result({ snapshotId, trackCount: tracks.length, moduleCount: modules.length });
   });
 
-  server.tool("write_lessons", "Add or replace validated lessons in a Tourguide draft.", {
+  server.tool("write_pages", "Add or replace evidence-backed pages in a Tourguide draft.", {
     snapshotId: z.string(),
-    lessons: z.array(LessonSchema),
-  }, async ({ snapshotId, lessons }) => {
+    pages: z.array(PageSchema),
+  }, async ({ snapshotId, pages }) => {
     const selected = await context();
     const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const replacements = new Map(lessons.map((lesson) => [lesson.id, lesson]));
-    const merged = [...draft.lessons.filter((lesson) => !replacements.has(lesson.id)), ...lessons];
-    const dependencies = Object.fromEntries(merged.map((lesson) => [lesson.id, lesson.prerequisites]));
-    const next = TourSnapshotSchema.parse({ ...draft, lessons: merged, dependencies });
+    const replacements = new Map(pages.map((page) => [page.id, page]));
+    const merged = [...draft.pages.filter((page) => !replacements.has(page.id)), ...pages];
+    const next = TourSnapshotSchema.parse({
+      ...draft,
+      pages: merged,
+      dependencies: Object.fromEntries(merged.map((page) => [page.id, page.prerequisites])),
+    });
     await selected.store.saveDraft(next);
-    return result({ snapshotId, written: lessons.map((lesson) => lesson.id), total: merged.length });
+    return result({ snapshotId, written: pages.map((page) => page.id), total: merged.length });
   });
 
-  server.tool("validate_snapshot", "Validate lesson references, ordering, and publication readiness.", {
+  server.tool("validate_snapshot", "Validate hierarchy, breadth, evidence, exercises, and publication readiness.", {
+    snapshotId: z.string(),
+    partial: z.boolean().default(false),
+  }, async ({ snapshotId, partial }) => {
+    const selected = await context();
+    const draft = await selected.store.loadDraft(snapshotId);
+    if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
+    return result({ ...(await validateSnapshot(draft, selected.root, { partial })), pageCount: draft.pages.length });
+  });
+
+  server.tool("publish_snapshot", "Publish a valid complete draft.", {
     snapshotId: z.string(),
   }, async ({ snapshotId }) => {
     const selected = await context();
     const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const errors = await validationErrors(draft, selected.root);
-    return result({ valid: errors.length === 0, errors, lessonCount: draft.lessons.length });
-  });
-
-  server.tool("publish_snapshot", "Publish a valid draft for progressive use in the browser.", {
-    snapshotId: z.string(),
-  }, async ({ snapshotId }) => {
-    const selected = await context();
-    const draft = await selected.store.loadDraft(snapshotId);
-    if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const errors = await validationErrors(draft, selected.root);
-    if (errors.length > 0) throw new Error(`Snapshot is not publishable:\n${errors.join("\n")}`);
+    const report = await validateSnapshot(draft, selected.root);
+    if (!report.valid) throw new Error(`Snapshot is not publishable:\n${report.errors.join("\n")}`);
     await selected.store.publish(draft);
-    return result({ published: true, snapshotId });
+    return result({ published: true, snapshotId, warnings: report.warnings });
   });
 
-  server.tool("probe_recipe", "Run an argv-based lesson recipe through Tourguide's local permission boundary.", {
+  server.tool("probe_recipe", "Run an argv-based page recipe in a disposable worktree at the snapshot commit.", {
+    snapshotId: z.string(),
     recipe: z.any(),
     trusted: z.boolean().default(false),
     inputs: z.record(z.string(), z.string()).default({}),
-  }, async ({ recipe, trusted, inputs }) => {
+  }, async ({ snapshotId, recipe, trusted, inputs }) => {
     const selected = await context();
-    return result(await runRecipe(selected.root, recipe, trusted, inputs));
+    const snapshot = await selected.store.snapshot(snapshotId) ?? await selected.store.loadDraft(snapshotId);
+    if (!snapshot) throw new Error(`Unknown snapshot ${snapshotId}`);
+    return result(await runRecipe(selected.root, recipe, trusted, inputs, snapshot.anchor.commit));
   });
 
-  server.tool("read_evidence", "Read a bounded source excerpt from a specific committed revision and compute its content hash.", {
+  server.tool("read_evidence", "Read a bounded source excerpt from a specific committed revision and compute its hash.", {
     path: z.string(),
-    revision: z.string().optional(),
+    revision: z.string(),
     lineStart: z.number().int().positive().default(1),
     lineEnd: z.number().int().positive().optional(),
   }, async ({ path, revision, lineStart, lineEnd }) => {
     const selected = await context();
-    const inventory = await inspectRepository(selected.root);
-    if (!inventory.trackedFiles.includes(path)) throw new Error(`Not a tracked path: ${path}`);
-    const anchoredRevision = revision ?? inventory.head;
-    const content = await readRevisionFile(selected.root, anchoredRevision, path);
+    const content = await readRevisionFile(selected.root, revision, path);
     const lines = content.split("\n");
     const end = Math.min(lineEnd ?? lineStart + 79, lineStart + 199, lines.length);
     if (end < lineStart) throw new Error("lineEnd must be greater than or equal to lineStart.");
-    return result({ path, revision: anchoredRevision, lineStart, lineEnd: end, contentHash: contentHash(content), validated: true, content: lines.slice(lineStart - 1, end).join("\n") });
+    return result({
+      path,
+      revision,
+      lineStart,
+      lineEnd: end,
+      contentHash: contentHash(content),
+      validated: true,
+      content: lines.slice(lineStart - 1, end).join("\n"),
+    });
   });
 
-  server.tool("assess_freshness", "Compare the published snapshot with current committed HEAD and propagate stale lesson dependencies.", {}, async () => {
+  server.tool("assess_freshness", "Compare the published snapshot with current committed HEAD.", {}, async () => {
     const selected = await context();
     const snapshot = await selected.store.current();
     if (!snapshot) return result({ fresh: false, reason: "No published snapshot" });
-    const inventory = await inspectRepository(selected.root);
+    const inventory = await inspectRepositoryAt(selected.root, "HEAD");
     return result(await assessFreshness(selected.root, snapshot, inventory.head));
   });
 
-  server.tool("launch_app", "Launch the local Tourguide browser application.", {}, async () => {
+  server.tool("launch_app", "Launch the local Tourguide browser application at a selected Git ref.", {
+    ref: z.string().default("HEAD"),
+    model: z.string().optional(),
+  }, async ({ ref, model }) => {
     const selected = await context();
-    web ??= await startWebServer(selected.root);
+    web ??= await startWebServer(selected.root, 0, { ref, ...(model ? { model } : {}) });
     await open(web.url);
-    return result({ url: web.url });
+    return result({ url: web.url, ref });
   });
 
-  server.tool("get_active_lesson_context", "Return the published tour for contextual learner questions.", {}, async () => {
+  server.tool("get_active_page_context", "Return the current tour and learner preferences for contextual questions.", {}, async () => {
     const selected = await context();
     return result({ tour: await selected.store.current(), preferences: await selected.store.preferences() });
   });

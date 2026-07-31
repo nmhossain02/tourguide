@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: "../../plugins/tourguide/dist/web",
+    outDir: "dist",
     emptyOutDir: true,
   },
   server: {

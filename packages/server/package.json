@@ -1,23 +1,36 @@
 {
-  "name": "@tourguide/server",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@nmhossain02/tourguide",
+  "version": "0.2.0",
+  "description": "Generate and explore interactive, Codex-authored tours of Git codebases.",
+  "license": "Apache-2.0",
+  "private": false,
   "type": "module",
+  "bin": {
+    "tourguide": "dist/tourguide.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "tsx src/cli.ts open ../..",
-    "build": "tsup",
+    "build": "tsup && node ../../scripts/sync-distribution.mjs",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
+  "devDependencies": {
+    "@types/node": "latest",
     "@fastify/static": "latest",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@tourguide/core": "workspace:*",
     "fastify": "latest",
     "open": "latest",
-    "zod": "^4.0.0"
-  },
-  "devDependencies": {
-    "@types/node": "latest",
+    "zod": "^4.0.0",
     "tsup": "latest",
     "tsx": "latest",
     "typescript": "latest"
