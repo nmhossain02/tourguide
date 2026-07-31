@@ -54,6 +54,8 @@ function recipe(id: string) {
 async function fakeCodex(root: string, options: {
   invalidFirstModule?: boolean;
   invalidExercisePath?: boolean;
+  invalidPagePrerequisite?: boolean;
+  invalidPlanPrerequisite?: boolean;
   modulePrerequisite?: boolean;
 } = {}): Promise<string> {
   const pages = [
@@ -90,7 +92,7 @@ async function fakeCodex(root: string, options: {
       title: "Foundations",
       outcome: "Understand the fixture.",
       relevance: "It is the whole fixture.",
-      prerequisites: [],
+      prerequisites: options.invalidPlanPrerequisite ? ["Node.js installed locally"] : [],
       surfaces: ["README.md"],
       gaps: [],
       pages: pages.map(([id, kind]) => ({
@@ -112,7 +114,9 @@ async function fakeCodex(root: string, options: {
       objective: `Understand ${id}.`,
       estimatedMinutes: 2,
       narrative: `This fixture page teaches ${id} through a bounded repository observation.`,
-      prerequisites: index === 0 ? [] : [pages[index - 1]![0]],
+      prerequisites: index === 0
+        ? options.invalidPagePrerequisite ? ["Node.js installed locally"] : []
+        : [pages[index - 1]![0]],
       evidence: [{
         id: `${id}-inference`,
         kind: index === 0 ? "runtime" : index === 1 ? "source" : "inference",
@@ -278,5 +282,37 @@ describe("Codex generation orchestration", () => {
     expect((await store.current())?.pages[0]?.prerequisites).toEqual([]);
     const events = await store.generationEvents(job!.id);
     expect(events.some((event) => event.message.includes("Repairing Foundations"))).toBe(false);
+  });
+
+  it("removes environment requirements mistakenly emitted as page prerequisites", async () => {
+    const root = await repository();
+    const executable = await fakeCodex(root, { invalidPagePrerequisite: true });
+    const store = new TourStore(root);
+    const generator = new TourGenerator(root, store, new CodexExecRunner(executable));
+    await generator.start({ goal: "Understand the fixture.", ref: "HEAD" });
+
+    let job = await store.generationJob();
+    for (let attempt = 0; attempt < 100 && job?.status !== "complete" && !job?.errorCode; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      job = await store.generationJob();
+    }
+    expect(job?.status).toBe("complete");
+    expect((await store.current())?.pages[0]?.prerequisites).toEqual([]);
+  });
+
+  it("removes environment requirements mistakenly emitted as module prerequisites", async () => {
+    const root = await repository();
+    const executable = await fakeCodex(root, { invalidPlanPrerequisite: true });
+    const store = new TourStore(root);
+    const generator = new TourGenerator(root, store, new CodexExecRunner(executable));
+    await generator.start({ goal: "Understand the fixture.", ref: "HEAD" });
+
+    let job = await store.generationJob();
+    for (let attempt = 0; attempt < 100 && job?.status !== "complete" && !job?.errorCode; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      job = await store.generationJob();
+    }
+    expect(job?.status).toBe("complete");
+    expect((await store.current())?.modules[0]?.prerequisites).toEqual([]);
   });
 });

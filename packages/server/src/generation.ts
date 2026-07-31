@@ -195,6 +195,7 @@ function normalizedTracks(plan: CurriculumPlan) {
 
 function draftFromPlan(plan: CurriculumPlan, inventory: ProjectInventory, id: string): TourSnapshot {
   const plannedPageIds = new Set<string>();
+  const plannedModuleIds = new Set(plan.modules.map((module) => module.id));
   for (const module of plan.modules) {
     if ((module.pages.length < 6 || module.pages.length > 15)
       && !module.gaps.some((gap) => /scope|curriculum|page|length/i.test(gap.area))) {
@@ -235,7 +236,7 @@ function draftFromPlan(plan: CurriculumPlan, inventory: ProjectInventory, id: st
       outcome: module.outcome,
       relevance: module.relevance,
       estimatedMinutes: module.pages.length * 3,
-      prerequisites: module.prerequisites,
+      prerequisites: module.prerequisites.filter((prerequisite) => plannedModuleIds.has(prerequisite)),
       pageIds: module.pages.map((page) => page.id),
       surfaces: module.surfaces.filter((path) => inventory.trackedFiles.includes(path)),
       gaps: module.gaps,
@@ -371,11 +372,11 @@ function addUsage(current: GenerationJob["usage"], added: CodexUsage): Generatio
   };
 }
 
-function removeModulePrerequisitesFromPages(pages: Page[], plan: CurriculumPlan): Page[] {
-  const moduleIds = new Set(plan.modules.map((module) => module.id));
+function removeUnknownPrerequisitesFromPages(pages: Page[], plan: CurriculumPlan): Page[] {
+  const pageIds = new Set(plan.modules.flatMap((module) => module.pages.map((page) => page.id)));
   return pages.map((page) => ({
     ...page,
-    prerequisites: page.prerequisites.filter((prerequisite) => !moduleIds.has(prerequisite)),
+    prerequisites: page.prerequisites.filter((prerequisite) => pageIds.has(prerequisite)),
   }));
 }
 
@@ -543,7 +544,7 @@ export class TourGenerator {
             generated.value,
           );
           try {
-            const pages = removeModulePrerequisitesFromPages(
+            const pages = removeUnknownPrerequisitesFromPages(
               await normalizeModule(generated.value, planned, generationInventory),
               planResult.value,
             );

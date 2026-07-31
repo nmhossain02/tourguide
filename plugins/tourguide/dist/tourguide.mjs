@@ -57289,6 +57289,13 @@ import { mkdir as mkdir2, rm as rm2 } from "fs/promises";
 import { resolve as resolve2, relative, isAbsolute, join as join2 } from "path";
 import { promisify as promisify2 } from "util";
 var execFileAsync2 = promisify2(execFile2);
+function writeEscapesWorkspace(path2) {
+  const normalized = path2.replaceAll("\\", "/");
+  return !path2 || path2.includes("\0") || isAbsolute(path2) || normalized.startsWith("/") || /^[A-Za-z]:\//.test(normalized) || normalized.split("/").some((part) => part === "..");
+}
+function recipeRequiresTrustedMode(recipe) {
+  return recipe.capabilities.network === "external" || recipe.capabilities.externalSystems.length > 0 || recipe.capabilities.containers || recipe.capabilities.writes.some(writeEscapesWorkspace);
+}
 function containedPath(root, requested) {
   const target = resolve2(root, requested);
   const rel = relative(root, target);
@@ -57393,8 +57400,8 @@ async function workspaceChanges(workspace, recipe) {
 }
 async function runRecipeInWorkspace(workspace, input, trusted = false, values = {}) {
   const recipe = materialize(RunRecipeSchema.parse(input), values);
-  if (!trusted && (recipe.capabilities.network === "external" || recipe.capabilities.externalSystems.length > 0)) {
-    throw new Error("This recipe requires explicit trusted-mode approval for external access.");
+  if (!trusted && recipeRequiresTrustedMode(recipe)) {
+    throw new Error("This recipe requires explicit trusted-mode approval for external or host access.");
   }
   const isolatedHome = join2(workspace, ".tourguide-home");
   await mkdir2(isolatedHome, { recursive: true });
@@ -58463,7 +58470,7 @@ function redactValue(value, depth = 0) {
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value).slice(0, 100).map(([key, item]) => [
       key,
-      /token|password|secret|authorization|api.?key/i.test(key) ? "[REDACTED]" : redactValue(item, depth + 1)
+      /token|password|secret|authorization|api.?key/i.test(key) && typeof item !== "number" && typeof item !== "boolean" ? "[REDACTED]" : redactValue(item, depth + 1)
     ]));
   }
   return String(value);
@@ -58509,8 +58516,8 @@ async function buildDiagnosticReport(root, input, store = new TourStore(root)) {
       arch: process.arch
     },
     ...input.codex ? { codex: input.codex } : {},
-    ...generation ? { generation } : {},
-    recentEvents,
+    ...generation ? { generation: redactValue(generation) } : {},
+    recentEvents: redactValue(recentEvents),
     ...input.error !== void 0 ? { error: diagnosticError(input.error) } : {},
     context: redactValue(input.context ?? {})
   });
@@ -68093,6 +68100,7 @@ import { promisify as promisify11 } from "util";
 var execFileAsync9 = promisify11(execFile11);
 var MAX_SOURCE_FILE_BYTES = 768 * 1024;
 var MAX_SOURCE_TOTAL_BYTES = 30 * 1024 * 1024;
+var MAX_EXERCISE_FILE_BYTES = 512 * 1024;
 var BINARY_EXTENSIONS = /* @__PURE__ */ new Set([
   ".7z",
   ".avi",
@@ -68269,6 +68277,7 @@ function normalizedTracks(plan) {
 }
 function draftFromPlan(plan, inventory, id) {
   const plannedPageIds = /* @__PURE__ */ new Set();
+  const plannedModuleIds = new Set(plan.modules.map((module) => module.id));
   for (const module of plan.modules) {
     if ((module.pages.length < 6 || module.pages.length > 15) && !module.gaps.some((gap) => /scope|curriculum|page|length/i.test(gap.area))) {
       throw new Error(`Planned module ${module.id} has ${module.pages.length} pages without an explicit scope gap.`);
@@ -68306,7 +68315,7 @@ function draftFromPlan(plan, inventory, id) {
       outcome: module.outcome,
       relevance: module.relevance,
       estimatedMinutes: module.pages.length * 3,
-      prerequisites: module.prerequisites,
+      prerequisites: module.prerequisites.filter((prerequisite) => plannedModuleIds.has(prerequisite)),
       pageIds: module.pages.map((page) => page.id),
       surfaces: module.surfaces.filter((path2) => inventory.trackedFiles.includes(path2)),
       gaps: module.gaps,
@@ -68326,6 +68335,15 @@ async function normalizeModule(generated, planned, inventory) {
   }
   const tracked = new Set(inventory.trackedFiles);
   const excluded = new Set(inventory.excludedFiles);
+  const { stdout: treeOutput } = await execFileAsync9(
+    "git",
+    ["-C", inventory.root, "ls-tree", "-r", "-z", inventory.head],
+    { encoding: "utf8" }
+  );
+  const modes = new Map(treeOutput.split("\0").filter(Boolean).map((entry) => {
+    const separator = entry.indexOf("	");
+    return [entry.slice(separator + 1), entry.slice(0, entry.indexOf(" "))];
+  }));
   const contents = /* @__PURE__ */ new Map();
   const source = async (path2) => {
     const cached2 = contents.get(path2);
@@ -68385,14 +68403,28 @@ async function normalizeModule(generated, planned, inventory) {
         ...grounding.lineEnd ? { lineEnd: grounding.lineEnd } : {}
       }
     ] : interactions;
-    const exercise = page.exercise ? (() => {
+    let exercise;
+    if (page.exercise) {
       const { verificationRecipe, formatRecipe, ...rest2 } = page.exercise;
-      return {
+      for (const path2 of page.exercise.allowedPaths) {
+        if (!tracked.has(path2) || excluded.has(path2)) {
+          throw new Error(`Exercise ${id} allows unavailable path ${path2}.`);
+        }
+        if (!modes.get(path2)?.startsWith("100")) {
+          throw new Error(`Exercise ${id} path ${path2} must be a regular, non-symlink file.`);
+        }
+        const content = await source(path2);
+        if (content.includes("\0")) throw new Error(`Exercise ${id} path ${path2} must be a text file.`);
+        if (Buffer.byteLength(content, "utf8") > MAX_EXERCISE_FILE_BYTES) {
+          throw new Error(`Exercise ${id} path ${path2} is too large for the browser editor.`);
+        }
+      }
+      exercise = {
         ...rest2,
         ...verificationRecipe ? { verificationRecipe: normalizeRecipe(verificationRecipe) } : {},
         ...formatRecipe ? { formatRecipe: normalizeRecipe(formatRecipe) } : {}
       };
-    })() : void 0;
+    }
     const { evidence: _generatedEvidence, interactions: _generatedInteractions, exercise: _generatedExercise, ...rest } = page;
     return {
       ...rest,
@@ -68411,11 +68443,11 @@ function addUsage(current, added) {
     outputTokens: current.outputTokens + added.outputTokens
   };
 }
-function removeModulePrerequisitesFromPages(pages, plan) {
-  const moduleIds = new Set(plan.modules.map((module) => module.id));
+function removeUnknownPrerequisitesFromPages(pages, plan) {
+  const pageIds = new Set(plan.modules.flatMap((module) => module.pages.map((page) => page.id)));
   return pages.map((page) => ({
     ...page,
-    prerequisites: page.prerequisites.filter((prerequisite) => !moduleIds.has(prerequisite))
+    prerequisites: page.prerequisites.filter((prerequisite) => pageIds.has(prerequisite))
   }));
 }
 function normalizeRecipe(recipe) {
@@ -68565,7 +68597,7 @@ ${planReport.errors.join("\n")}`);
             generated.value
           );
           try {
-            const pages = removeModulePrerequisitesFromPages(
+            const pages = removeUnknownPrerequisitesFromPages(
               await normalizeModule(generated.value, planned, generationInventory),
               planResult.value
             );
@@ -68618,8 +68650,9 @@ ${report.errors.join("\n")}`);
       job = await this.save(job, { status: "complete", phase: "complete", message: "Tour generation is complete." });
       await this.event(job, "complete", job.message);
     } catch (error51) {
-      const message = error51 instanceof Error ? error51.message : String(error51);
-      const cancelled = signal.aborted || /cancelled/i.test(message);
+      const rawMessage = error51 instanceof Error ? error51.message : String(error51);
+      const message = redactDiagnosticText(rawMessage);
+      const cancelled = signal.aborted || /cancelled/i.test(rawMessage);
       const partial2 = Boolean(snapshot?.pages.length);
       const failurePhase = job.phase;
       job = await this.save(job, {
@@ -68660,13 +68693,10 @@ function staticDirectory() {
   ].filter((candidate) => Boolean(candidate));
   return candidates.find((candidate) => existsSync(resolve4(candidate, "index.html"))) ?? candidates[0];
 }
-function findRecipe(tour, id) {
-  for (const page of tour?.pages ?? []) {
-    for (const interaction of page.interactions) {
-      if (interaction.type === "command" && interaction.recipe.id === id) return interaction.recipe;
-    }
-  }
-  return void 0;
+function findRecipe(tour, pageId, recipeId) {
+  const page = tour?.pages.find((candidate) => candidate.id === pageId);
+  const matches = page?.interactions.flatMap((interaction) => interaction.type === "command" && interaction.recipe.id === recipeId ? [interaction.recipe] : []) ?? [];
+  return matches.length === 1 ? matches[0] : void 0;
 }
 function findPage(tour, id) {
   return tour?.pages.find((page) => page.id === id);
@@ -68849,7 +68879,7 @@ async function startWebServer(start, port = 0, options = {}) {
   });
   app.post("/api/run", async (request, reply) => {
     const tour = await store.current();
-    const recipe = request.body?.recipeId ? findRecipe(tour, request.body.recipeId) : void 0;
+    const recipe = request.body?.pageId && request.body.recipeId ? findRecipe(tour, request.body.pageId, request.body.recipeId) : void 0;
     if (!recipe || !tour) return reply.code(404).send({ error: "Unknown recipe" });
     try {
       return await runRecipe(
@@ -68946,6 +68976,37 @@ function result(value) {
     structuredContent: value
   };
 }
+async function buildRefreshDraft(root, current, ref) {
+  const inventory = await inspectRepositoryAt(root, ref);
+  const freshness = await assessFreshness(root, current, inventory.head);
+  const stalePages = new Set(freshness.stalePageIds);
+  const staleModules = new Set(freshness.staleModuleIds);
+  const refreshEvidence = async (evidence) => {
+    if (!evidence.path) return { ...evidence, revision: inventory.head };
+    try {
+      const content = await readRevisionFile(root, inventory.head, evidence.path);
+      return { ...evidence, revision: inventory.head, contentHash: contentHash(content), validated: true };
+    } catch {
+      const { contentHash: _contentHash, ...rest } = evidence;
+      return { ...rest, revision: inventory.head, validated: false };
+    }
+  };
+  const pages = await Promise.all(current.pages.map(async (page) => ({
+    ...page,
+    status: stalePages.has(page.id) ? "stale" : page.status,
+    evidence: await Promise.all(page.evidence.map(refreshEvidence))
+  })));
+  const snapshot = TourSnapshotSchema.parse({
+    ...current,
+    id: randomUUID8(),
+    anchor: { ref: inventory.ref, commit: inventory.head },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    status: "draft",
+    modules: current.modules.map((module) => staleModules.has(module.id) ? { ...module, status: "stale" } : module),
+    pages
+  });
+  return { snapshot, freshness };
+}
 async function startMcpServer(start) {
   let root;
   let store;
@@ -69009,28 +69070,7 @@ async function startMcpServer(start) {
     const selected = await context();
     const current = await selected.store.current();
     if (!current) throw new Error("No published snapshot exists. Use begin_snapshot instead.");
-    const inventory = await inspectRepositoryAt(selected.root, ref);
-    const freshness = await assessFreshness(selected.root, current, inventory.head);
-    const stalePages = new Set(freshness.stalePageIds);
-    const staleModules = new Set(freshness.staleModuleIds);
-    const pages = await Promise.all(current.pages.map(async (page) => ({
-      ...page,
-      status: stalePages.has(page.id) ? "stale" : page.status,
-      evidence: await Promise.all(page.evidence.map(async (evidence) => {
-        if (!evidence.path) return { ...evidence, revision: inventory.head };
-        const content = await readRevisionFile(selected.root, inventory.head, evidence.path);
-        return { ...evidence, revision: inventory.head, contentHash: contentHash(content), validated: true };
-      }))
-    })));
-    const snapshot = TourSnapshotSchema.parse({
-      ...current,
-      id: randomUUID8(),
-      anchor: { ref: inventory.ref, commit: inventory.head },
-      generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      status: "draft",
-      modules: current.modules.map((module) => staleModules.has(module.id) ? { ...module, status: "stale" } : module),
-      pages
-    });
+    const { snapshot, freshness } = await buildRefreshDraft(selected.root, current, ref);
     await selected.store.saveDraft(snapshot);
     return result({ snapshotId: snapshot.id, freshness, snapshot });
   });
