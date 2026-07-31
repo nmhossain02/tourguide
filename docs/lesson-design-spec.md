@@ -6,7 +6,7 @@ Scope: curriculum shape, authoring behavior, validation, and learner navigation
 
 ## Problem
 
-Tourguide currently models a track as a flat list of independent 3–8 minute lessons. Each lesson has one objective, no more than 350 narrative words, and at least one interaction. This produces useful introductions, but it encourages an author to sample a repository rather than teach it. A four-lesson starter tour can identify the repository, Git state, detected surfaces, and history without explaining how the software actually works or how to change it safely.
+Tourguide's v1 model treated a track as a flat list of independent 3–8 minute lessons. Each lesson had one objective, no more than 350 narrative words, and at least one interaction. This produced useful introductions, but it encouraged an author to sample a repository rather than teach it. A four-lesson starter tour could identify the repository, Git state, detected surfaces, and history without explaining how the software actually works or how to change it safely.
 
 The desired change is not longer prose. It is a larger, deliberately sequenced curriculum made of small pages.
 
@@ -43,7 +43,7 @@ A language tour has a stable, universal syllabus and self-contained programs. A 
 Tourguide must therefore preserve the Go tour's pacing while changing its curriculum logic:
 
 - The curriculum is generated from repository evidence and learner goals, not from a universal topic list.
-- Source examples must be authentic and anchored to committed `HEAD`; explanatory snippets must not replace repository source.
+- Source examples must be authentic and anchored to the selected commit; explanatory snippets must not replace repository source.
 - A useful concept may span multiple files or processes, so pages can use source, command, browser, data, and topology views.
 - Exercises must run in disposable worktrees or use read-only observations. They must not turn the active checkout into a playground.
 - Secrets, containers, network access, and external systems may be unavailable. A blocked experiment needs a diagnostic or a safe local substitute, never invented output.
@@ -249,7 +249,7 @@ The agent workflow should change from “outline tracks, then write small lesson
 8. Probe demonstrations and verification recipes when runtime evidence matters.
 9. Publish the core track module-by-module, then selected tracks in priority order.
 
-The author should prefer a representative “spine”—for example one HTTP request, CLI invocation, job, or library call—that reappears across pages. This gives a package tour the continuity that the evolving examples give a language tour.
+The author should prefer a representative “spine” (for example, one HTTP request, CLI invocation, job, or library call) that reappears across pages. This gives a package tour the continuity that the evolving examples give a language tour.
 
 ## Validation rules
 

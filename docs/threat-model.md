@@ -6,13 +6,13 @@ Tourguide analyzes repositories and executes lesson recipes, so repository conte
 
 - The browser server binds only to `127.0.0.1`, rejects non-loopback Host headers, and requires a random per-process token on every API request.
 - Source reads are restricted to Git-tracked repository-relative paths. The default view is the snapshot's selected commit.
-- Codex generation receives a disposable filtered copy of that commit. Common secret paths, binary files, vendor trees, oversized files, ambient Codex configuration, project rules, and web search are excluded.
+- Codex generation receives a disposable filtered copy of that commit. Common secret paths, binary files, `node_modules` trees, and oversized files are omitted. Codex starts with ambient configuration and project rules ignored and web search disabled.
 - `codex exec` output is constrained by JSON schema, then normalized and validated against the real repository commit before publication.
 - Recipe commands use `spawn` with an argv array and `shell: false`. Working directories cannot escape the repository.
 - External network or external-system declarations require a visible trusted-mode opt-in.
 - Every recipe executes in a detached Git worktree with a temporary HOME. Tracked and untracked patches, changed paths, and undeclared writes are returned before removal.
 - Browser exercise editing is limited to declared regular, non-symlink tracked text files. Reset recreates the selected commit, and export produces a patch; the app never applies it.
-- Output is capped in memory and is not persisted. Generated state is local-only and excluded through `.git/info/exclude`.
+- Recipe output is capped in memory and is not persisted. Generated state and redacted, bounded diagnostics are local-only. Tourguide never stages them and adds `/.tourguide/` to `.git/info/exclude` in standard checkouts.
 
 ## Known alpha limitations
 

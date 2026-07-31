@@ -13,14 +13,10 @@ Tourguide is a local-first learning workbench that turns a Git repository into a
 
 ## Try it locally
 
-```bash
-npm install --global @nmhossain02/tourguide
-cd /path/to/a/git/repository
-tourguide
-```
+Follow the authoritative [Quick start](../README.md#quick-start) for the current install and launch commands.
 
 Press **Start tour**. The optional focus and advanced settings can narrow the curriculum or select another ref.
 
-Tourguide stores generated snapshots and learner state under `.tourguide/`, excludes that directory locally through `.git/info/exclude`, sends no telemetry, and does not retain raw recipe output.
+Tourguide stores generated snapshots and learner state under `.tourguide/`, sends no telemetry, and does not retain raw recipe output.
 
-Read the [architecture](architecture.md), [authoring contract](authoring.md), [proposed lesson design specification](lesson-design-spec.md), and [threat model](threat-model.md) before extending runtime capabilities.
+Read the [architecture](architecture.md), [authoring contract](authoring.md), [lesson design specification](lesson-design-spec.md), and [threat model](threat-model.md) before extending runtime capabilities.

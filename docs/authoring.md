@@ -7,7 +7,7 @@ Tourguide authors a curriculum before it writes prose. The normal standalone flo
 - One core track is priority 0. Add one selected track for the learner's task-shaped goal when useful.
 - Tracks contain modules; modules contain ordered pages.
 - A normal module has 6–15 pages and develops one capability or subsystem through context, structure, representative flow, behavior, failure, change, and recap.
-- Every applicable core capability—orientation, setup, run, architecture, data/state, test, debug, change workflow, and delivery/operations—is covered or given an explicit `not-applicable`, `blocked`, or `omitted` reason.
+- Every applicable core capability, including orientation, setup, run, architecture, data/state, test, debug, change workflow, and delivery/operations, is covered or given an explicit `not-applicable`, `blocked`, or `omitted` reason.
 - Each normal module has a demonstration and synthesis exercise, or a recorded safe fallback.
 
 ## Pages

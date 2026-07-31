@@ -56,6 +56,7 @@ async function fakeCodex(root: string, options: {
   invalidExercisePath?: boolean;
   invalidPagePrerequisite?: boolean;
   invalidPlanPrerequisite?: boolean;
+  invalidEditableSource?: boolean;
   modulePrerequisite?: boolean;
 } = {}): Promise<string> {
   const pages = [
@@ -126,7 +127,13 @@ async function fakeCodex(root: string, options: {
         ...(index === 1 ? { path: "README.md", lineStart: 2, lineEnd: 1 } : {}),
       }],
       interactions: [
-        ...(index === 1 ? [{
+        ...(index === 1 ? [options.invalidEditableSource ? {
+          type: "source",
+          path: "README.md",
+          editable: true,
+          lineStart: 2,
+          lineEnd: 1,
+        } : {
           type: "topology",
           nodes: [{ id: "fixture", label: "Fixture" }],
           edges: [],
@@ -314,5 +321,23 @@ describe("Codex generation orchestration", () => {
     }
     expect(job?.status).toBe("complete");
     expect((await store.current())?.modules[0]?.prerequisites).toEqual([]);
+  });
+
+  it("disables generated source editing outside patch exercises", async () => {
+    const root = await repository();
+    const executable = await fakeCodex(root, { invalidEditableSource: true });
+    const store = new TourStore(root);
+    const generator = new TourGenerator(root, store, new CodexExecRunner(executable));
+    await generator.start({ goal: "Understand the fixture.", ref: "HEAD" });
+
+    let job = await store.generationJob();
+    for (let attempt = 0; attempt < 100 && job?.status !== "complete" && !job?.errorCode; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      job = await store.generationJob();
+    }
+    expect(job?.status).toBe("complete");
+    expect(job?.usage.outputTokens).toBe(10);
+    const source = (await store.current())?.pages[1]?.interactions.find((interaction) => interaction.type === "source");
+    expect(source?.type === "source" ? source.editable : undefined).toBe(false);
   });
 });

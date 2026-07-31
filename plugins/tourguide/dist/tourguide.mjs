@@ -68358,7 +68358,10 @@ async function normalizeModule(generated, planned, inventory) {
       if (interaction.type === "source" && (!tracked.has(interaction.path) || excluded.has(interaction.path))) {
         throw new Error(`Page ${id} references unavailable source ${interaction.path}.`);
       }
-      if (interaction.type === "source") return normalizeRange(interaction, await source(interaction.path));
+      if (interaction.type === "source") return normalizeRange({
+        ...interaction,
+        editable: interaction.editable && page.kind === "exercise" && page.exercise?.mode === "patch"
+      }, await source(interaction.path));
       if (interaction.type === "command") return { ...interaction, recipe: normalizeRecipe(interaction.recipe) };
       if (interaction.type === "data") return {
         ...interaction,

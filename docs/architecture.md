@@ -24,7 +24,7 @@ tourguide [repository] --ref <ref>
 
 The server checks the local Codex CLI version and login, then launches `codex exec` in read-only/no-approval mode with JSONL events and a JSON output schema. It ignores ambient Codex configuration and project rules, disables web search, and gives Codex a disposable filtered repository containing only bounded text files from the selected commit. The first turn plans tracks, modules, pages, and coverage. Later turns resume the same Codex thread and draft one module at a time.
 
-Every generated module is normalized against the real selected commit: source paths must be tracked, evidence receives the exact revision and content hash, and the shared validator checks hierarchy, breadth, sequencing, recipes, and exercises. A valid module is published immediately as a partial snapshot; the complete tour is published only after final validation.
+Every generated module is normalized against the real selected commit: source paths must be tracked, evidence receives the exact revision and content hash, and the shared validator checks hierarchy, breadth, sequencing, recipes, and exercises. If normalization or repository-aware validation rejects a module, it receives at most one repair attempt in the same Codex thread. A valid module is published immediately as a partial snapshot; the complete tour is published only after final validation.
 
 ## Stored contract
 

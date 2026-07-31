@@ -31,6 +31,9 @@ copy the latest report, or print it from a terminal after the app stops:
 tourguide diagnostics /path/to/repository
 ```
 
+If generation stops after publishing a module, that completed curriculum remains
+available instead of being discarded.
+
 The report includes the failure stack, bounded Codex stdout/stderr, exit
 metadata, repository revision, generation state, and recent events. Tourguide
 does not include environment variables and redacts common credential patterns.
