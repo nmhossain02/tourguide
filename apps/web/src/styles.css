@@ -62,8 +62,10 @@ button:disabled { opacity: .45; cursor: default; }
 .interaction-tabs button { padding: 4px 8px; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 6px; text-transform: uppercase; font-size: 9px; cursor: pointer; }
 .interaction-tabs button.active { color: white; background: #282437; border-color: #45405a; }
 .workspace-card { min-height: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #0b0b11; position: relative; }
-.source-workspace, .browser-workspace, .data-workspace { display: grid; grid-template-rows: 42px auto minmax(0, 1fr); }
-.terminal-workspace { display: grid; grid-template-rows: 42px auto auto minmax(0, 1fr); }
+.source-workspace, .browser-workspace, .data-workspace { display: grid; grid-template-rows: 42px minmax(0, 1fr); }
+.source-workspace.has-live-change { grid-template-rows: 42px auto minmax(0, 1fr); }
+.terminal-workspace { display: grid; grid-template-rows: 42px auto minmax(0, 1fr); }
+.terminal-workspace.has-inputs { grid-template-rows: 42px auto auto minmax(0, 1fr); }
 .workspace-toolbar { height: 42px; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid var(--line); background: #15141c; font-size: 12px; }
 .workspace-toolbar a { color: #b5abff; text-decoration: none; display: flex; gap: 5px; align-items: center; }
 .live-change { padding: 7px 10px; background: #3d2f15; color: #e9c77d; font-size: 11px; display: flex; gap: 6px; align-items: center; }

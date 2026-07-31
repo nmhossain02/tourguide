@@ -36,7 +36,7 @@ function SourceView({ interaction, inventory }: {
     api.source(interaction.path, view).then(setSource).catch(console.error);
   }, [interaction.path, view]);
   const isDirty = inventory.dirtyFiles.includes(interaction.path);
-  return <div className="workspace-card source-workspace">
+  return <div className={`workspace-card source-workspace${isDirty ? " has-live-change" : ""}`}>
     <div className="workspace-toolbar">
       <span><FileCode2 size={15} /> {interaction.path}</span>
       {isDirty && <div className="segmented">
@@ -90,6 +90,7 @@ function CommandView({ pageId, interaction, onExperiment }: {
       theme: { background: "#0b0b11", foreground: "#e5e4ef", cursor: "#8e7dff" },
     });
     instance.open(terminalElement.current);
+    terminalElement.current.querySelector("textarea")?.setAttribute("name", "terminal-input");
     instance.writeln(`$ ${interaction.recipe.command} ${interaction.recipe.args.join(" ")}`);
     terminal.current = instance;
     return () => instance.dispose();
@@ -123,7 +124,7 @@ function CommandView({ pageId, interaction, onExperiment }: {
         || /^[A-Za-z]:\//.test(normalized)
         || normalized.split("/").some((part) => part === "..");
     });
-  return <div className="workspace-card terminal-workspace">
+  return <div className={`workspace-card terminal-workspace${interaction.recipe.inputs.length > 0 ? " has-inputs" : ""}`}>
     <div className="workspace-toolbar">
       <span><TerminalSquare size={15} /> {interaction.recipe.title}</span>
       <div className="toolbar-actions">
