@@ -25,11 +25,12 @@ import {
 } from "@tourguide/core";
 
 import { CodexExecRunner, type CodexUsage } from "./codex-exec.js";
-import { captureDiagnostic } from "./diagnostics.js";
+import { captureDiagnostic, redactDiagnosticText } from "./diagnostics.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_SOURCE_FILE_BYTES = 768 * 1024;
 const MAX_SOURCE_TOTAL_BYTES = 30 * 1024 * 1024;
+const MAX_EXERCISE_FILE_BYTES = 512 * 1024;
 
 const BINARY_EXTENSIONS = new Set([
   ".7z", ".avi", ".bin", ".bmp", ".class", ".db", ".dll", ".dylib", ".eot", ".exe",
@@ -259,6 +260,15 @@ async function normalizeModule(
   }
   const tracked = new Set(inventory.trackedFiles);
   const excluded = new Set(inventory.excludedFiles);
+  const { stdout: treeOutput } = await execFileAsync(
+    "git",
+    ["-C", inventory.root, "ls-tree", "-r", "-z", inventory.head],
+    { encoding: "utf8" },
+  );
+  const modes = new Map(treeOutput.split("\0").filter(Boolean).map((entry) => {
+    const separator = entry.indexOf("\t");
+    return [entry.slice(separator + 1), entry.slice(0, entry.indexOf(" "))];
+  }));
   const contents = new Map<string, string>();
   const source = async (path: string) => {
     const cached = contents.get(path);
@@ -319,14 +329,28 @@ async function normalizeModule(
         ...(grounding.lineEnd ? { lineEnd: grounding.lineEnd } : {}),
       },
     ] : interactions;
-    const exercise = page.exercise ? (() => {
+    let exercise: Page["exercise"];
+    if (page.exercise) {
       const { verificationRecipe, formatRecipe, ...rest } = page.exercise;
-      return {
+      for (const path of page.exercise.allowedPaths) {
+        if (!tracked.has(path) || excluded.has(path)) {
+          throw new Error(`Exercise ${id} allows unavailable path ${path}.`);
+        }
+        if (!modes.get(path)?.startsWith("100")) {
+          throw new Error(`Exercise ${id} path ${path} must be a regular, non-symlink file.`);
+        }
+        const content = await source(path);
+        if (content.includes("\0")) throw new Error(`Exercise ${id} path ${path} must be a text file.`);
+        if (Buffer.byteLength(content, "utf8") > MAX_EXERCISE_FILE_BYTES) {
+          throw new Error(`Exercise ${id} path ${path} is too large for the browser editor.`);
+        }
+      }
+      exercise = {
         ...rest,
         ...(verificationRecipe ? { verificationRecipe: normalizeRecipe(verificationRecipe) } : {}),
         ...(formatRecipe ? { formatRecipe: normalizeRecipe(formatRecipe) } : {}),
       };
-    })() : undefined;
+    }
     const { evidence: _generatedEvidence, interactions: _generatedInteractions, exercise: _generatedExercise, ...rest } = page;
     return {
       ...rest,
@@ -572,8 +596,9 @@ export class TourGenerator {
       job = await this.save(job, { status: "complete", phase: "complete", message: "Tour generation is complete." });
       await this.event(job, "complete", job.message);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const cancelled = signal.aborted || /cancelled/i.test(message);
+      const rawMessage = error instanceof Error ? error.message : String(error);
+      const message = redactDiagnosticText(rawMessage);
+      const cancelled = signal.aborted || /cancelled/i.test(rawMessage);
       const partial = Boolean(snapshot?.pages.length);
       const failurePhase = job.phase;
       job = await this.save(job, {

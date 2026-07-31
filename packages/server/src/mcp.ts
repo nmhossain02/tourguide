@@ -17,6 +17,9 @@ import {
   readRevisionFile,
   runRecipe,
   validateSnapshot,
+  type EvidenceRef,
+  type FreshnessReport,
+  type TourSnapshot,
 } from "@tourguide/core";
 import open from "open";
 import { z } from "zod";
@@ -28,6 +31,42 @@ function result(value: unknown) {
     content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
     structuredContent: value as Record<string, unknown>,
   };
+}
+
+export async function buildRefreshDraft(
+  root: string,
+  current: TourSnapshot,
+  ref: string,
+): Promise<{ snapshot: TourSnapshot; freshness: FreshnessReport }> {
+  const inventory = await inspectRepositoryAt(root, ref);
+  const freshness = await assessFreshness(root, current, inventory.head);
+  const stalePages = new Set(freshness.stalePageIds);
+  const staleModules = new Set(freshness.staleModuleIds);
+  const refreshEvidence = async (evidence: EvidenceRef): Promise<EvidenceRef> => {
+    if (!evidence.path) return { ...evidence, revision: inventory.head };
+    try {
+      const content = await readRevisionFile(root, inventory.head, evidence.path);
+      return { ...evidence, revision: inventory.head, contentHash: contentHash(content), validated: true };
+    } catch {
+      const { contentHash: _contentHash, ...rest } = evidence;
+      return { ...rest, revision: inventory.head, validated: false };
+    }
+  };
+  const pages = await Promise.all(current.pages.map(async (page) => ({
+    ...page,
+    status: stalePages.has(page.id) ? "stale" as const : page.status,
+    evidence: await Promise.all(page.evidence.map(refreshEvidence)),
+  })));
+  const snapshot = TourSnapshotSchema.parse({
+    ...current,
+    id: randomUUID(),
+    anchor: { ref: inventory.ref, commit: inventory.head },
+    generatedAt: new Date().toISOString(),
+    status: "draft",
+    modules: current.modules.map((module) => staleModules.has(module.id) ? { ...module, status: "stale" } : module),
+    pages,
+  });
+  return { snapshot, freshness };
 }
 
 export async function startMcpServer(start?: string): Promise<void> {
@@ -97,28 +136,7 @@ export async function startMcpServer(start?: string): Promise<void> {
     const selected = await context();
     const current = await selected.store.current();
     if (!current) throw new Error("No published snapshot exists. Use begin_snapshot instead.");
-    const inventory = await inspectRepositoryAt(selected.root, ref);
-    const freshness = await assessFreshness(selected.root, current, inventory.head);
-    const stalePages = new Set(freshness.stalePageIds);
-    const staleModules = new Set(freshness.staleModuleIds);
-    const pages = await Promise.all(current.pages.map(async (page) => ({
-      ...page,
-      status: stalePages.has(page.id) ? "stale" as const : page.status,
-      evidence: await Promise.all(page.evidence.map(async (evidence) => {
-        if (!evidence.path) return { ...evidence, revision: inventory.head };
-        const content = await readRevisionFile(selected.root, inventory.head, evidence.path);
-        return { ...evidence, revision: inventory.head, contentHash: contentHash(content), validated: true };
-      })),
-    })));
-    const snapshot = TourSnapshotSchema.parse({
-      ...current,
-      id: randomUUID(),
-      anchor: { ref: inventory.ref, commit: inventory.head },
-      generatedAt: new Date().toISOString(),
-      status: "draft",
-      modules: current.modules.map((module) => staleModules.has(module.id) ? { ...module, status: "stale" } : module),
-      pages,
-    });
+    const { snapshot, freshness } = await buildRefreshDraft(selected.root, current, ref);
     await selected.store.saveDraft(snapshot);
     return result({ snapshotId: snapshot.id, freshness, snapshot });
   });

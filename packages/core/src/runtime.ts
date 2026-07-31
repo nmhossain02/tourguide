@@ -22,6 +22,23 @@ export interface RunResult {
 
 const execFileAsync = promisify(execFile);
 
+function writeEscapesWorkspace(path: string): boolean {
+  const normalized = path.replaceAll("\\", "/");
+  return !path
+    || path.includes("\0")
+    || isAbsolute(path)
+    || normalized.startsWith("/")
+    || /^[A-Za-z]:\//.test(normalized)
+    || normalized.split("/").some((part) => part === "..");
+}
+
+export function recipeRequiresTrustedMode(recipe: RunRecipe): boolean {
+  return recipe.capabilities.network === "external"
+    || recipe.capabilities.externalSystems.length > 0
+    || recipe.capabilities.containers
+    || recipe.capabilities.writes.some(writeEscapesWorkspace);
+}
+
 export function containedPath(root: string, requested: string): string {
   const target = resolve(root, requested);
   const rel = relative(root, target);
@@ -131,8 +148,8 @@ export async function runRecipeInWorkspace(
   values: Record<string, string> = {},
 ): Promise<RunResult> {
   const recipe = materialize(RunRecipeSchema.parse(input), values);
-  if (!trusted && (recipe.capabilities.network === "external" || recipe.capabilities.externalSystems.length > 0)) {
-    throw new Error("This recipe requires explicit trusted-mode approval for external access.");
+  if (!trusted && recipeRequiresTrustedMode(recipe)) {
+    throw new Error("This recipe requires explicit trusted-mode approval for external or host access.");
   }
   const isolatedHome = join(workspace, ".tourguide-home");
   await mkdir(isolatedHome, { recursive: true });

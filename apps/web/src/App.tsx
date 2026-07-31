@@ -67,7 +67,8 @@ function ResultOutput({ result }: { result: RunResult | undefined }) {
   ].join("")}</pre>;
 }
 
-function CommandView({ interaction, onExperiment }: {
+function CommandView({ pageId, interaction, onExperiment }: {
+  pageId: string;
   interaction: Extract<Interaction, { type: "command" }>;
   onExperiment(): void;
 }) {
@@ -98,7 +99,7 @@ function CommandView({ interaction, onExperiment }: {
     terminal.current?.clear();
     terminal.current?.writeln(`\x1b[38;5;141m$ ${interaction.recipe.command} ${interaction.recipe.args.join(" ")}\x1b[0m`);
     try {
-      const result = await api.run(interaction.recipe.id, trusted, inputs);
+      const result = await api.run(pageId, interaction.recipe.id, trusted, inputs);
       if (result.stdout) terminal.current?.write(result.stdout.replaceAll("\n", "\r\n"));
       if (result.stderr) terminal.current?.write(`\x1b[31m${result.stderr.replaceAll("\n", "\r\n")}\x1b[0m`);
       if (result.patch) terminal.current?.write(`\r\n\x1b[36mCaptured patch:\r\n${result.patch.replaceAll("\n", "\r\n")}\x1b[0m`);
@@ -111,7 +112,17 @@ function CommandView({ interaction, onExperiment }: {
     }
   };
   const capabilities = interaction.recipe.capabilities;
-  const needsTrust = capabilities.network === "external" || capabilities.externalSystems.length > 0;
+  const needsTrust = capabilities.network === "external"
+    || capabilities.externalSystems.length > 0
+    || capabilities.containers
+    || capabilities.writes.some((path) => {
+      const normalized = path.replaceAll("\\", "/");
+      return !path
+        || path.includes("\0")
+        || normalized.startsWith("/")
+        || /^[A-Za-z]:\//.test(normalized)
+        || normalized.split("/").some((part) => part === "..");
+    });
   return <div className="workspace-card terminal-workspace">
     <div className="workspace-toolbar">
       <span><TerminalSquare size={15} /> {interaction.recipe.title}</span>
@@ -164,13 +175,14 @@ function TopologyView({ interaction }: { interaction: Extract<Interaction, { typ
   </div>;
 }
 
-function InteractionView({ interaction, inventory, onExperiment }: {
+function InteractionView({ pageId, interaction, inventory, onExperiment }: {
+  pageId: string;
   interaction: Interaction;
   inventory: ProjectInventory;
   onExperiment(): void;
 }) {
   if (interaction.type === "source") return <SourceView interaction={interaction} inventory={inventory} />;
-  if (interaction.type === "command") return <CommandView interaction={interaction} onExperiment={onExperiment} />;
+  if (interaction.type === "command") return <CommandView pageId={pageId} interaction={interaction} onExperiment={onExperiment} />;
   if (interaction.type === "data") return <DataView interaction={interaction} />;
   if (interaction.type === "topology") return <TopologyView interaction={interaction} />;
   return <div className="workspace-card browser-workspace">
@@ -590,8 +602,8 @@ export function App() {
               <button key={index} className={index === interactionIndex ? "active" : ""} onClick={() => setInteractionIndex(index)}>{interaction.type}</button>)}</div>}
           </div>
           {page.exercise
-            ? <ExerciseView page={page} onAttempt={() => updateProgress(page.id, { exerciseAttempted: true })} />
-            : selectedInteraction && <InteractionView interaction={selectedInteraction} inventory={data.inventory} onExperiment={() => updateProgress(page.id, { demonstrated: true })} />}
+            ? <ExerciseView key={page.id} page={page} onAttempt={() => updateProgress(page.id, { exerciseAttempted: true })} />
+            : selectedInteraction && <InteractionView pageId={page.id} interaction={selectedInteraction} inventory={data.inventory} onExperiment={() => updateProgress(page.id, { demonstrated: true })} />}
         </section></Panel>
       </Group></main>
     </div>

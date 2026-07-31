@@ -37,6 +37,31 @@ afterEach(async () => {
 describe("diagnostic reports", () => {
   it("persists actionable context and redacts common credentials", async () => {
     const root = await repository();
+    const store = new TourStore(root);
+    await store.initialize();
+    const createdAt = new Date().toISOString();
+    await store.saveGenerationJob({
+      id: "failed-job",
+      action: "create",
+      status: "failed",
+      phase: "planning",
+      anchor: { ref: "HEAD", commit: (await exec("git", ["-C", root, "rev-parse", "HEAD"])).stdout.trim() },
+      goal: "Learn the fixture",
+      priorities: [],
+      plannedModuleIds: [],
+      completedModuleIds: [],
+      message: "authorization: Bearer stored-job-secret",
+      errorCode: "engine",
+      usage: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 },
+      startedAt: createdAt,
+      updatedAt: createdAt,
+    });
+    await store.appendGenerationEvent({
+      jobId: "failed-job",
+      type: "error",
+      message: "https://localhost/failure?token=stored-event-secret",
+      createdAt,
+    });
     const error = new CodexExecFailure(
       "Codex failed at https://localhost/?token=super-secret-token",
       { stderr: "authorization: Bearer hidden-value", apiKey: "also-hidden" },
@@ -46,14 +71,18 @@ describe("diagnostic reports", () => {
       summary: "Generation failed while planning.",
       error,
       context: { phase: "planning" },
-    });
+    }, store);
     const text = await readFile(captured.path, "utf8");
     expect(text).toContain("Generation failed while planning");
     expect(text).toContain("planning");
     expect(text).not.toContain("super-secret-token");
     expect(text).not.toContain("hidden-value");
     expect(text).not.toContain("also-hidden");
-    expect((await new TourStore(root).latestDiagnostic())?.id).toBe(captured.report.id);
+    expect(text).not.toContain("stored-job-secret");
+    expect(text).not.toContain("stored-event-secret");
+    expect(captured.report.generation?.message).toContain("[REDACTED]");
+    expect(captured.report.recentEvents[0]?.message).toContain("[REDACTED]");
+    expect((await store.latestDiagnostic())?.id).toBe(captured.report.id);
   });
 
   it("keeps Codex JSONL error output when exec exits unsuccessfully", async () => {

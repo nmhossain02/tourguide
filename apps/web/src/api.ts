@@ -63,8 +63,8 @@ export const api = {
     json<{ path: string; content: string; dirty: boolean; view: string; revision: string }>(
       `/api/source?path=${encodeURIComponent(path)}&view=${view}`,
     ),
-  run: (recipeId: string, trusted = false, inputs: Record<string, string> = {}) =>
-    json<RunResult>("/api/run", body({ recipeId, trusted, inputs })),
+  run: (pageId: string, recipeId: string, trusted = false, inputs: Record<string, string> = {}) =>
+    json<RunResult>("/api/run", body({ pageId, recipeId, trusted, inputs })),
   preferences: (value: Preferences) => json<Preferences>("/api/preferences", body(value)),
   progress: (value: Progress) => json<Progress>("/api/progress", body(value)),
   startGeneration: (value: { ref: string; goal: string; priorities: string[]; model?: string }) =>

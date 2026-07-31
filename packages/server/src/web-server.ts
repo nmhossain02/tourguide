@@ -40,13 +40,11 @@ function staticDirectory(): string {
   return candidates.find((candidate) => existsSync(resolve(candidate, "index.html"))) ?? candidates[0]!;
 }
 
-function findRecipe(tour: TourSnapshot | undefined, id: string): RunRecipe | undefined {
-  for (const page of tour?.pages ?? []) {
-    for (const interaction of page.interactions) {
-      if (interaction.type === "command" && interaction.recipe.id === id) return interaction.recipe;
-    }
-  }
-  return undefined;
+function findRecipe(tour: TourSnapshot | undefined, pageId: string, recipeId: string): RunRecipe | undefined {
+  const page = tour?.pages.find((candidate) => candidate.id === pageId);
+  const matches = page?.interactions.flatMap((interaction) =>
+    interaction.type === "command" && interaction.recipe.id === recipeId ? [interaction.recipe] : []) ?? [];
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 function findPage(tour: TourSnapshot | undefined, id: string): Page | undefined {
@@ -258,9 +256,11 @@ export async function startWebServer(
     }
   });
 
-  app.post<{ Body: { recipeId?: string; trusted?: boolean; inputs?: Record<string, string> } }>("/api/run", async (request, reply) => {
+  app.post<{ Body: { pageId?: string; recipeId?: string; trusted?: boolean; inputs?: Record<string, string> } }>("/api/run", async (request, reply) => {
     const tour = await store.current();
-    const recipe = request.body?.recipeId ? findRecipe(tour, request.body.recipeId) : undefined;
+    const recipe = request.body?.pageId && request.body.recipeId
+      ? findRecipe(tour, request.body.pageId, request.body.recipeId)
+      : undefined;
     if (!recipe || !tour) return reply.code(404).send({ error: "Unknown recipe" });
     try {
       return await runRecipe(

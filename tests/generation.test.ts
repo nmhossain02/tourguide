@@ -51,7 +51,11 @@ function recipe(id: string) {
   };
 }
 
-async function fakeCodex(root: string, options: { invalidFirstModule?: boolean; modulePrerequisite?: boolean } = {}): Promise<string> {
+async function fakeCodex(root: string, options: {
+  invalidFirstModule?: boolean;
+  invalidExercisePath?: boolean;
+  modulePrerequisite?: boolean;
+} = {}): Promise<string> {
   const pages = [
     ["context", "orientation"],
     ["structure", "concept"],
@@ -142,7 +146,14 @@ async function fakeCodex(root: string, options: { invalidFirstModule?: boolean; 
   if (options.modulePrerequisite) generated.pages[0]!.prerequisites = ["foundations"];
   const invalidGenerated = options.invalidFirstModule
     ? { ...generated, moduleId: "wrong-foundations" }
-    : generated;
+    : options.invalidExercisePath
+      ? {
+          ...generated,
+          pages: generated.pages.map((page) => page.exercise
+            ? { ...page, exercise: { ...page.exercise, allowedPaths: ["missing.txt"] } }
+            : page),
+        }
+      : generated;
   const path = join(root, "fake-codex.mjs");
   await writeFile(path, `#!/usr/bin/env node
 import { readFileSync, writeFileSync } from "node:fs";
@@ -226,6 +237,28 @@ describe("Codex generation orchestration", () => {
     await expect(readFile(join(root, ".tourguide", "cache", "jobs", `${started.id}.module-foundations-repair.json`), "utf8")).resolves.toContain('"moduleId": "foundations"');
     const events = await store.generationEvents(started.id);
     expect(events.some((event) => event.message.includes("Repairing Foundations"))).toBe(true);
+  });
+
+  it("repairs generated exercise paths that cannot be edited", async () => {
+    const root = await repository();
+    const executable = await fakeCodex(root, { invalidExercisePath: true });
+    const store = new TourStore(root);
+    const generator = new TourGenerator(root, store, new CodexExecRunner(executable));
+    const started = await generator.start({ goal: "Understand the fixture.", ref: "HEAD" });
+
+    let job = await store.generationJob();
+    for (let attempt = 0; attempt < 100 && job?.status !== "complete" && !job?.errorCode; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      job = await store.generationJob();
+    }
+    expect(job?.status).toBe("complete");
+    expect(job?.usage.outputTokens).toBe(15);
+    expect((await store.current())?.pages.find((page) => page.kind === "exercise")?.exercise?.allowedPaths).toEqual([]);
+    const repaired = JSON.parse(await readFile(
+      join(root, ".tourguide", "cache", "jobs", `${started.id}.module-foundations-repair.json`),
+      "utf8",
+    )) as { pages: Array<{ exercise?: { allowedPaths: string[] } }> };
+    expect(repaired.pages.find((page) => page.exercise)?.exercise?.allowedPaths).toEqual([]);
   });
 
   it("removes module IDs mistakenly emitted as page prerequisites without a model retry", async () => {

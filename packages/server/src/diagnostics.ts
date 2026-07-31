@@ -40,7 +40,11 @@ function redactValue(value: unknown, depth = 0): unknown {
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 100).map(([key, item]) => [
       key,
-      /token|password|secret|authorization|api.?key/i.test(key) ? "[REDACTED]" : redactValue(item, depth + 1),
+      /token|password|secret|authorization|api.?key/i.test(key)
+        && typeof item !== "number"
+        && typeof item !== "boolean"
+        ? "[REDACTED]"
+        : redactValue(item, depth + 1),
     ]));
   }
   return String(value);
@@ -96,8 +100,8 @@ export async function buildDiagnosticReport(
       arch: process.arch,
     },
     ...(input.codex ? { codex: input.codex } : {}),
-    ...(generation ? { generation } : {}),
-    recentEvents,
+    ...(generation ? { generation: redactValue(generation) } : {}),
+    recentEvents: redactValue(recentEvents),
     ...(input.error !== undefined ? { error: diagnosticError(input.error) } : {}),
     context: redactValue(input.context ?? {}) as Record<string, unknown>,
   });

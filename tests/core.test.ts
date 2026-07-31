@@ -167,6 +167,27 @@ describe("recipe runtime", () => {
     })).rejects.toThrow("trusted-mode");
   });
 
+  it("requires approval for declared host-affecting capabilities", async () => {
+    const root = await repository();
+    const base = {
+      id: "host", title: "host", command: "node", args: ["-e", "console.log('no')"], cwd: ".",
+      lifecycle: "oneshot" as const, timeoutMs: 2_000, env: {}, inputs: [],
+      capabilities: { writes: [], network: "none" as const, secrets: [], containers: false, externalSystems: [] },
+    };
+    await expect(runRecipe(root, {
+      ...base,
+      capabilities: { ...base.capabilities, containers: true },
+    })).rejects.toThrow("trusted-mode");
+    await expect(runRecipe(root, {
+      ...base,
+      capabilities: { ...base.capabilities, writes: ["/tmp/tourguide-host-write"] },
+    })).rejects.toThrow("trusted-mode");
+    await expect(runRecipe(root, {
+      ...base,
+      capabilities: { ...base.capabilities, writes: ["../outside.txt"] },
+    })).rejects.toThrow("trusted-mode");
+  });
+
   it("runs declared writes in a disposable Git worktree and returns the patch", async () => {
     const root = await repository();
     const original = await readFile(join(root, "README.md"), "utf8");
