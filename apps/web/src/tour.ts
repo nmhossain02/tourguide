@@ -57,3 +57,7 @@ export function editorLanguageForPath(path: string) {
 export function errorMessage(reason: unknown) {
   return reason instanceof Error ? reason.message : String(reason);
 }
+
+export function errorText(reason: unknown) {
+  return String(reason);
+}

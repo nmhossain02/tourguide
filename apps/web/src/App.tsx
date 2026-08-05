@@ -16,7 +16,7 @@ import {
   TopBar,
   TourContent,
 } from "./components/TourView";
-import { errorMessage, getOrderedPages, isGenerating, type GenerationInput } from "./tour";
+import { errorText, getOrderedPages, isGenerating, type GenerationInput } from "./tour";
 
 const POLL_INTERVAL_MS = 1_000;
 const MAX_VISIBLE_EVENTS = 200;
@@ -39,7 +39,7 @@ export function App() {
         lastEventId.current = bootstrap.events.at(-1)?.id ?? 0;
         setPageId(bootstrap.tour?.pages[0]?.id);
       })
-      .catch((reason) => setError(errorMessage(reason)));
+      .catch((reason) => setError(errorText(reason)));
   }, []);
 
   useEffect(() => {

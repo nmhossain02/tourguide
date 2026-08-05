@@ -13,7 +13,7 @@ import {
 
 import type { BootstrapPayload, DiagnosticsPayload } from "../api";
 import { api } from "../api";
-import { errorMessage, isGenerating, type GenerationInput } from "../tour";
+import { errorMessage, errorText, isGenerating, type GenerationInput } from "../tour";
 
 const DEFAULT_GOAL = "Help me become productive in this codebase by teaching its setup, architecture, main execution path, tests, debugging workflow, and a representative safe change.";
 
@@ -156,7 +156,7 @@ export function DiagnosticsModal({ onClose }: { onClose(): void }) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    api.diagnostics().then(setPayload).catch((reason) => setError(errorMessage(reason)));
+    api.diagnostics().then(setPayload).catch((reason) => setError(errorText(reason)));
   }, []);
 
   const report = payload?.latest ?? payload?.current;
