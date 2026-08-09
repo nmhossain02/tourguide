@@ -20,4 +20,4 @@ Press **Explore codebase** to browse without generating, or press **Start tour**
 
 Tourguide stores generated snapshots and learner state under `.tourguide/`, sends no telemetry, and does not retain raw recipe output.
 
-Read the [architecture](architecture.md), [living executable documentation model](living-documentation.md), [authoring contract](authoring.md), [capability matrix](capabilities.md), [ADR 001](adr-001-repository-knowledge-and-labs.md), [ADR 002](adr-002-living-executable-documentation.md), [lesson design specification](lesson-design-spec.md), and [threat model](threat-model.md) before extending runtime capabilities.
+Read the [architecture](architecture.md), [living executable documentation model](living-documentation.md), [authoring contract](authoring.md), [capability matrix](capabilities.md), [ADR 001](adr-001-repository-knowledge-and-labs.md), [ADR 002](adr-002-living-executable-documentation.md), [historical v2 curriculum research](lesson-design-spec.md), and [threat model](threat-model.md) before extending runtime capabilities.

@@ -11,6 +11,6 @@
 | Python and Go files | File-level | Repository commands only | Symbol extraction is a later Tree-sitter or SCIP adapter |
 | Compose and containers | File-level | Trusted mode only | Not a default prerequisite |
 | Repository mocks and fixtures | Path detection plus inferred contracts | Visible repository, declarative, or generated provenance | Generated mocks must remain inside the validated provider boundary |
-| Lab continuity | Module navigation | Process lifetime | Browser or server restart intentionally starts a fresh disposable lab |
+| Lab continuity | Module navigation and browser reload | Server process lifetime | Reopen the module to reconnect after a reload; a server restart ends every unretained lab |
 
 Catalog extraction is deterministic and does not spend Codex quota. Unresolved documentation is batched into one focused call. Missing runtime profiles are batched into one synthesis call and accepted only after a real probe. Warm commits normally require neither call. Tour generation remains one planning turn plus resumed module turns with at most one repair per module.

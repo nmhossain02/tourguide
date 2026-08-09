@@ -1,6 +1,7 @@
 # Tourguide lesson design specification
 
-Status: implemented baseline in Tourguide v0.2  
+Status: historical v2 curriculum baseline; [the authoring contract](authoring.md) and [living documentation model](living-documentation.md) own current v3 behavior
+
 Research baseline: A Tour of Go at `golang/website` commit `1137bfafedc6d402a8bf2472281efd6477b45d55` (2026-07-20)  
 Scope: curriculum shape, authoring behavior, validation, and learner navigation
 

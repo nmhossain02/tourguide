@@ -158,7 +158,22 @@ test("newcomer explores all catalogs and completes an isolated contribution loop
   await expect(page.frameLocator(".invocation-output iframe").getByRole("button", { name: "Rendered component" })).toBeVisible();
   if (evidenceDirectory) await page.screenshot({ path: join(evidenceDirectory, "generated-provider-render.png"), fullPage: true });
 
+  let releaseExerciseViewProgress = () => {};
+  const exerciseViewProgressReleased = new Promise<void>((resolve) => { releaseExerciseViewProgress = resolve; });
+  let observeExerciseViewProgress = () => {};
+  const exerciseViewProgressStarted = new Promise<void>((resolve) => { observeExerciseViewProgress = resolve; });
+  let delayedExerciseViewProgress = false;
+  await page.route("**/api/progress", async (route) => {
+    const payload = route.request().postDataJSON() as { pages?: Record<string, { viewed?: boolean }> };
+    if (!delayedExerciseViewProgress && payload.pages?.[exercise.id]?.viewed) {
+      delayedExerciseViewProgress = true;
+      observeExerciseViewProgress();
+      await exerciseViewProgressReleased;
+    }
+    await route.continue();
+  });
   await page.getByRole("button", { name: new RegExp(exercise.title) }).click();
+  await exerciseViewProgressStarted;
   await page.getByRole("button", { name: "Start in an isolated workspace" }).click();
   const editor = page.locator(".exercise-editor .monaco-editor");
   await expect(editor).toBeVisible();
@@ -198,7 +213,8 @@ test("newcomer explores all catalogs and completes an isolated contribution loop
   await replaceEditorContent('{"name":"changed-package"}');
   await page.getByRole("button", { name: "Verify" }).click();
   await expect(page.locator(".verification-result.pass")).toContainText("Both edited files contain their changes");
-  await expect.poll(async () => (await store.progress()).pages[exercise.id]).toMatchObject({ exerciseAttempted: true, verified: true });
+  releaseExerciseViewProgress();
+  await expect.poll(async () => (await store.progress()).pages[exercise.id]).toMatchObject({ viewed: true, exerciseAttempted: true, verified: true });
   await page.getByRole("button", { name: "Export patch" }).click();
   await expect(page.locator(".patch-output")).toContainText("changed");
   await page.getByRole("button", { name: "Keep on branch" }).click();

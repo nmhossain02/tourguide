@@ -1,6 +1,6 @@
 # ADR 001: Separate repository knowledge, tours, and labs
 
-Status: accepted
+Status: accepted; semantic refresh and runtime ownership amended by [ADR 002](adr-002-living-executable-documentation.md)
 
 ## Context
 
@@ -18,6 +18,6 @@ The analyzer and lab registries reject duplicate IDs and allow new languages or 
 
 ## Consequences
 
-Catalogs are independently browsable without an LLM call. Refresh can stale exact dependents by item hash. Labs survive page navigation but intentionally do not survive a browser or server restart yet. Durable lab reconnection, SCIP ingestion, and Tree-sitter analyzers remain later extensions.
+Catalogs are independently browsable without an LLM call. Exact item hashes preserve reproducible evidence, while ADR 002 owns semantic refresh and runtime reuse. Labs survive page navigation. A browser reload can reconnect to the same module lab while the server remains running, but a server restart ends every unretained lab. Durable cross-process reconnection, SCIP ingestion, and Tree-sitter analyzers remain later extensions.
 
 Tourguide does not automatically refactor production code, execute hidden generated mocks, or retain learner work without an explicit action.
