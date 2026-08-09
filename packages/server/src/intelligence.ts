@@ -9,6 +9,7 @@ import {
   DocumentationInferenceArtifactSchema,
   LabManager,
   RuntimeProviderArtifactSchema,
+  RuntimeSubjectRegistryArtifactSchema,
   TourSnapshotSchema,
   TourImpactAssessmentArtifactSchema,
   TourStore,
@@ -27,6 +28,7 @@ import {
   type RunRecipe,
   type RuntimeProfile,
   type RuntimeProviderArtifact,
+  type RuntimeSubjectRegistryArtifact,
   type TourImpactAssessmentArtifact,
   type TourSnapshot,
 } from "@tourguide/core";
@@ -184,6 +186,14 @@ function runtimeCacheKey(profile: RuntimeProfile): string {
   });
 }
 
+function runtimeRegistryCacheKey(profile: RuntimeProfile, providerCacheKey: string): string {
+  return intelligenceFingerprint({
+    kind: "runtime-subject-registry",
+    providerCacheKey,
+    subjectRegistryFingerprint: profile.subjectRegistryFingerprint,
+  });
+}
+
 function tourContractFingerprint(tour: TourSnapshot): string {
   return intelligenceFingerprint({
     tracks: tour.tracks.map(({ id, moduleIds }) => ({ id, moduleIds })),
@@ -301,11 +311,11 @@ function deterministicProvider(profile: RuntimeProfile, inventory: ProjectInvent
     services: [],
     invocations: [],
     validation: {
-      status: "pass",
-      validator: "deterministic-provider-probe-v1",
+      status: "fail",
+      validator: "deterministic-provider-unprobed-v1",
       validatedAt: generatedAt,
       inputFingerprint: cacheKey,
-      diagnostics: [],
+      diagnostics: ["Repository capability was detected but has not been executed."],
     },
   });
 }
@@ -331,9 +341,20 @@ Return one provider per profile using its exact profileId. A provider may create
 
 type RuntimeRecipeProposal = z.output<typeof RuntimeRecipeProposalSchema>;
 
-function normalizeRecipe(value: RuntimeRecipeProposal, providerRoot: string): RunRecipe {
+function normalizedProviderWrite(path: string, cwdMode: "repository" | "provider", providerRoot: string): string | undefined {
+  const normalized = path.replaceAll("\\", "/");
+  if (!safeProviderPath(normalized)) return undefined;
+  const candidate = posix.normalize(cwdMode === "provider" ? posix.join(providerRoot, normalized) : normalized);
+  return candidate.startsWith(`${providerRoot}/`) ? candidate : undefined;
+}
+
+function normalizeRecipe(value: RuntimeRecipeProposal, providerRoot: string, diagnostics: string[]): RunRecipe {
   const cwd = value.cwdMode === "provider" ? providerRoot : ".";
-  const writes = value.capabilities.writes.map((path) => value.cwdMode === "provider" ? posix.join(providerRoot, path) : path);
+  const writes = value.capabilities.writes.flatMap((path) => {
+    const normalized = normalizedProviderWrite(path, value.cwdMode, providerRoot);
+    if (!normalized) diagnostics.push(`Recipe ${value.id} writes outside provider root: ${path}.`);
+    return normalized ? [normalized] : [];
+  });
   return {
     id: value.id,
     title: value.title,
@@ -351,7 +372,7 @@ function normalizeRecipe(value: RuntimeRecipeProposal, providerRoot: string): Ru
 
 function safeProviderPath(path: string): boolean {
   const normalized = path.replaceAll("\\", "/");
-  return Boolean(path) && !normalized.startsWith("/") && !normalized.split("/").some((part) => !part || part === "..");
+  return Boolean(path) && !normalized.startsWith("/") && !normalized.split("/").some((part) => !part || part === "." || part === "..");
 }
 
 function validateRuntimeProposal(
@@ -364,15 +385,15 @@ function validateRuntimeProposal(
   const diagnostics: string[] = [];
   if (!proposal) diagnostics.push("Codex omitted this runtime profile.");
   for (const path of proposal?.files.map((file) => file.path) ?? []) if (!safeProviderPath(path)) diagnostics.push(`Unsafe provider file path ${path}.`);
-  const preparationRecipes = (proposal?.preparationRecipes ?? []).map((recipe) => normalizeRecipe(recipe, root));
+  const preparationRecipes = (proposal?.preparationRecipes ?? []).map((recipe) => normalizeRecipe(recipe, root, diagnostics));
   const services: LabService[] = (proposal?.services ?? []).map((service) => ({
     ...service,
-    recipe: normalizeRecipe({ ...service.recipe, lifecycle: "service" }, root),
+    recipe: normalizeRecipe({ ...service.recipe, lifecycle: "service" }, root, diagnostics),
   }));
   const invocations = (proposal?.invocations ?? []).map((invocation) => ({
     capability: invocation.capability,
     kind: invocation.kind,
-    ...(invocation.recipe ? { recipe: normalizeRecipe({ ...invocation.recipe, lifecycle: "oneshot" }, root) } : {}),
+    ...(invocation.recipe ? { recipe: normalizeRecipe({ ...invocation.recipe, lifecycle: "oneshot" }, root, diagnostics) } : {}),
     ...(invocation.serviceId ? { serviceId: invocation.serviceId } : {}),
     ...(invocation.pathTemplate ? { pathTemplate: invocation.pathTemplate } : {}),
     result: invocation.result,
@@ -426,9 +447,9 @@ function runtimeWithArtifacts(documentation: LivingDocumentationSnapshot, artifa
   };
 }
 
-function probeItem(documentation: LivingDocumentationSnapshot, profile: RuntimeProfile): KnowledgeItem {
-  const subject = documentation.subjects.find((candidate) => profile.subjectIds.includes(candidate.id));
-  if (!subject) throw new Error(`Runtime profile ${profile.id} has no representative subject.`);
+function probeItem(documentation: LivingDocumentationSnapshot, profile: RuntimeProfile, subjectId: string): KnowledgeItem {
+  const subject = documentation.subjects.find((candidate) => candidate.id === subjectId && profile.subjectIds.includes(candidate.id));
+  if (!subject) throw new Error(`Runtime profile ${profile.id} has no subject ${subjectId}.`);
   const base = {
     id: subject.knowledgeItemId,
     title: subject.title,
@@ -442,7 +463,14 @@ function probeItem(documentation: LivingDocumentationSnapshot, profile: RuntimeP
     adapterId: "living-documentation",
     tags: [subject.domain],
   };
-  if (profile.domain === "component-library") return { ...base, catalog: "components", kind: "component", props: [], storyIds: [], providers: [] };
+  if (profile.domain === "component-library") return {
+    ...base,
+    catalog: "components",
+    kind: "component",
+    props: [],
+    storyIds: Array.isArray(subject.contract.stories) ? subject.contract.stories.filter((value): value is string => typeof value === "string") : [],
+    providers: [],
+  };
   if (profile.domain === "api") return {
     ...base,
     catalog: "api",
@@ -455,14 +483,83 @@ function probeItem(documentation: LivingDocumentationSnapshot, profile: RuntimeP
   return { ...base, catalog: "code-docs", kind: "symbol", language: "TypeScript", headings: [] };
 }
 
-async function probeGeneratedProvider(
+function packageScript(inventory: ProjectInventory, script: string): { command: string; args: string[] } {
+  if (inventory.trackedFiles.includes("pnpm-lock.yaml")) return { command: "corepack", args: ["pnpm", "run", script] };
+  if (inventory.trackedFiles.includes("yarn.lock")) return { command: "corepack", args: ["yarn", script] };
+  return { command: "npm", args: ["run", script] };
+}
+
+function deterministicProbeFacilities(
+  profile: RuntimeProfile,
+  inventory: ProjectInventory,
+  documentation: LivingDocumentationSnapshot,
+): { adapterIds: string[]; preparationRecipes: RunRecipe[]; services: LabService[] } {
+  if (profile.domain === "component-library") {
+    const runner = packageScript(inventory, "storybook");
+    return {
+      adapterIds: ["storybook"],
+      preparationRecipes: [],
+      services: [{
+        id: "storybook", title: "Repository Storybook", portEnv: "PORT", healthUrl: "http://127.0.0.1:{{port}}/index.json", healthTimeoutMs: 60_000,
+        recipe: {
+          id: "storybook", title: "Repository Storybook", command: runner.command,
+          args: [...runner.args, "--", "--host", "127.0.0.1", "--port", "{{port}}"], cwd: ".", lifecycle: "service", timeoutMs: 900_000,
+          env: {}, inputs: [], capabilities: { writes: [], network: "loopback", secrets: [], containers: false, externalSystems: [] },
+        },
+      }],
+    };
+  }
+  if (profile.domain === "api") {
+    const runner = packageScript(inventory, "dev");
+    return {
+      adapterIds: ["http"],
+      preparationRecipes: [],
+      services: [{
+        id: "api", title: "Repository API", portEnv: "PORT", healthTimeoutMs: 60_000,
+        recipe: {
+          id: "api", title: "Repository API", command: runner.command, args: runner.args, cwd: ".", lifecycle: "service", timeoutMs: 900_000,
+          env: { DATABASE_PATH: "app.db" }, inputs: [], capabilities: { writes: ["app.db"], network: "loopback", secrets: [], containers: false, externalSystems: [] },
+        },
+      }],
+    };
+  }
+  if (profile.domain === "data-model") {
+    const schemaPath = documentation.subjects
+      .filter((subject) => profile.subjectIds.includes(subject.id))
+      .flatMap((subject) => subject.evidence)
+      .find((evidence) => evidence.path?.endsWith(".sql"))?.path;
+    if (!schemaPath) return { adapterIds: [], preparationRecipes: [], services: [] };
+    return {
+      adapterIds: ["sqlite"],
+      preparationRecipes: [{
+        id: "prepare-sqlite", title: "Prepare SQLite probe", command: process.execPath,
+        args: ["-e", "const{readFileSync}=require('node:fs');const{DatabaseSync}=require('node:sqlite');const db=new DatabaseSync(process.argv[2]);db.exec(readFileSync(process.argv[1],'utf8'));db.close()", schemaPath, "app.db"],
+        cwd: ".", lifecycle: "oneshot", timeoutMs: 30_000, env: {}, inputs: [],
+        capabilities: { writes: ["app.db"], network: "none", secrets: [], containers: false, externalSystems: [] },
+      }],
+      services: [],
+    };
+  }
+  return { adapterIds: ["function-js"], preparationRecipes: [], services: [] };
+}
+
+function probeInputs(item: KnowledgeItem): Record<string, unknown> {
+  if (item.catalog === "data-model") return { databasePath: "app.db", query: "SELECT name FROM sqlite_master WHERE type = 'table' LIMIT 1" };
+  if (item.catalog === "code-docs") return { args: [] };
+  return {};
+}
+
+async function probeRuntimeProvider(
   root: string,
   documentation: LivingDocumentationSnapshot,
   profile: RuntimeProfile,
   artifact: RuntimeProviderArtifact,
+  inventory: ProjectInventory,
 ): Promise<RuntimeProviderArtifact> {
-  if (artifact.validation.status === "fail") return artifact;
-  const item = probeItem(documentation, profile);
+  if (artifact.source === "generated" && artifact.validation.status === "fail") return artifact;
+  const facilities = artifact.source === "generated"
+    ? { adapterIds: [] as string[], preparationRecipes: [] as RunRecipe[], services: [] as LabService[] }
+    : deterministicProbeFacilities(profile, inventory, documentation);
   const moduleId = "runtime-probe";
   const tour = TourSnapshotSchema.parse({
     schemaVersion: 3,
@@ -515,12 +612,12 @@ async function probeGeneratedProvider(
       id: "runtime-probe-environment",
       moduleId,
       title: "Runtime probe environment",
-      adapterIds: [],
+      adapterIds: facilities.adapterIds,
       runtimeProfileIds: [profile.id],
-      runtimeProviders: [artifact],
+      runtimeProviders: artifact.source === "generated" ? [artifact] : [],
       editablePaths: [],
-      preparationRecipes: [],
-      services: [],
+      preparationRecipes: facilities.preparationRecipes,
+      services: facilities.services,
       dependencies: [],
       readiness: "ready",
     }],
@@ -529,10 +626,21 @@ async function probeGeneratedProvider(
   const diagnostics: string[] = [];
   try {
     const { session } = await manager.create(tour, moduleId);
-    const result = await manager.invokeCapability(session.id, domainPrimaryCapability(profile), { item, inputs: {} });
-    if (result.value && typeof result.value === "object" && "url" in result.value) {
-      const response = await fetch(String((result.value as { url: unknown }).url), { signal: AbortSignal.timeout(5_000) });
-      if (!response.ok) diagnostics.push(`Provider URL probe returned HTTP ${response.status}.`);
+    for (const subjectId of profile.subjectIds) {
+      const item = probeItem(documentation, profile, subjectId);
+      try {
+        const result = await manager.invokeCapability(session.id, domainPrimaryCapability(profile), { item, inputs: probeInputs(item) });
+        if (result.value && typeof result.value === "object" && "url" in result.value) {
+          const response = await fetch(String((result.value as { url: unknown }).url), { signal: AbortSignal.timeout(5_000) });
+          if (!response.ok) diagnostics.push(`${subjectId}: provider URL returned HTTP ${response.status}.`);
+        }
+        if (item.catalog === "api" && result.value && typeof result.value === "object" && "status" in result.value) {
+          const status = Number((result.value as { status: unknown }).status);
+          if (status >= 400) diagnostics.push(`${subjectId}: API probe returned HTTP ${status}.`);
+        }
+      } catch (error) {
+        diagnostics.push(`${subjectId}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
   } catch (error) {
     diagnostics.push(error instanceof Error ? error.message : String(error));
@@ -547,6 +655,37 @@ async function probeGeneratedProvider(
       validatedAt: new Date().toISOString(),
       inputFingerprint: artifact.cacheKey,
       diagnostics,
+    },
+  });
+}
+
+function runtimeRegistryArtifact(
+  documentation: LivingDocumentationSnapshot,
+  profile: RuntimeProfile,
+  provider: RuntimeProviderArtifact,
+): RuntimeSubjectRegistryArtifact {
+  const cacheKey = runtimeRegistryCacheKey(profile, provider.cacheKey);
+  const subjects = profile.subjectIds.map((id) => {
+    const subject = documentation.subjects.find((candidate) => candidate.id === id);
+    if (!subject) throw new Error(`Runtime registry references missing subject ${id}.`);
+    return { id, contractFingerprint: subject.contractFingerprint, evidenceFingerprint: subject.evidenceFingerprint };
+  });
+  const generatedAt = new Date().toISOString();
+  return RuntimeSubjectRegistryArtifactSchema.parse({
+    schemaVersion: 1,
+    id: `runtime-subject-registry:${cacheKey}`,
+    cacheKey,
+    providerCacheKey: provider.cacheKey,
+    profileId: profile.id,
+    subjectRegistryFingerprint: profile.subjectRegistryFingerprint,
+    subjects,
+    generatedAt,
+    validation: {
+      status: provider.validation.status,
+      validator: "runtime-subject-registry-probe-v1",
+      validatedAt: generatedAt,
+      inputFingerprint: cacheKey,
+      diagnostics: provider.validation.diagnostics,
     },
   });
 }
@@ -633,14 +772,32 @@ export class IntelligenceCoordinator {
       const cacheKey = runtimeCacheKey(profile);
       const cached = await this.store.runtimeProviderArtifact(cacheKey);
       if (successful(cached, cacheKey)) {
-        artifacts.push(cached);
         cacheHits += 1;
+        const registryKey = runtimeRegistryCacheKey(profile, cached.cacheKey);
+        const registry = await this.store.runtimeSubjectRegistryArtifact(registryKey);
+        if (successful(registry, registryKey)) {
+          artifacts.push(cached);
+          continue;
+        }
+        const reprobed = await probeRuntimeProvider(this.root, documentation, profile, cached, inventory);
+        const refreshedRegistry = runtimeRegistryArtifact(documentation, profile, reprobed);
+        await this.store.saveRuntimeSubjectRegistryArtifact(refreshedRegistry);
+        if (reprobed.validation.status === "pass") {
+          artifacts.push(reprobed);
+          continue;
+        }
+        missing.push({ profile, cacheKey });
         continue;
       }
       const deterministic = deterministicProvider(profile, inventory, documentation);
       if (deterministic) {
-        await this.store.saveRuntimeProviderArtifact(deterministic);
-        artifacts.push(deterministic);
+        const probed = await probeRuntimeProvider(this.root, documentation, profile, deterministic, inventory);
+        const registry = runtimeRegistryArtifact(documentation, profile, probed);
+        await this.store.saveRuntimeSubjectRegistryArtifact(registry);
+        if (probed.validation.status === "pass") {
+          await this.store.saveRuntimeProviderArtifact(probed);
+          artifacts.push(probed);
+        } else missing.push({ profile, cacheKey });
       } else missing.push({ profile, cacheKey });
     }
     let generated: CodexExecResult<z.output<typeof RuntimeSynthesisBatchSchema>> | undefined;
@@ -661,8 +818,9 @@ export class IntelligenceCoordinator {
       for (const { profile, cacheKey } of missing) {
         const proposal = generated.value.providers.find((candidate) => candidate.profileId === profile.id);
         const proposed = validateRuntimeProposal(profile, proposal, cacheKey);
-        const artifact = await probeGeneratedProvider(this.root, documentation, profile, proposed);
+        const artifact = await probeRuntimeProvider(this.root, documentation, profile, proposed, inventory);
         await this.store.saveRuntimeProviderArtifact(artifact);
+        await this.store.saveRuntimeSubjectRegistryArtifact(runtimeRegistryArtifact(documentation, profile, artifact));
         if (artifact.validation.status === "pass") artifacts.push(artifact);
       }
     }

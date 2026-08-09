@@ -69,13 +69,13 @@ test("newcomer explores all catalogs and completes an isolated contribution loop
   });
   const exercise = tour.pages.find((candidate) => candidate.kind === "exercise")!;
   exercise.exercise = {
-    ...exercise.exercise!, mode: "patch", allowedPaths: ["README.md"],
+    ...exercise.exercise!, mode: "patch", allowedPaths: ["README.md", "package.json"],
     verificationRecipe: {
       id: "verify-readme", title: "Verify README", command: process.execPath,
-      args: ["-e", "process.exit(require('fs').readFileSync('README.md','utf8').includes('changed')?0:1)"],
+      args: ["-e", "const f=require('fs');process.exit(f.readFileSync('README.md','utf8').includes('changed')&&f.readFileSync('package.json','utf8').includes('changed-package')?0:1)"],
       cwd: ".", lifecycle: "oneshot", timeoutMs: 3_000, env: {}, inputs: [],
       capabilities: { writes: [], network: "none", secrets: [], containers: false, externalSystems: [] },
-      expected: "README contains changed.",
+      expected: "Both edited files contain their changes.",
     },
   };
   tour.labEnvironments = [{
@@ -136,7 +136,7 @@ test("newcomer explores all catalogs and completes an isolated contribution loop
         diagnostics: [],
       },
     }],
-    editablePaths: ["README.md"],
+    editablePaths: ["README.md", "package.json"],
     preparationRecipes: [],
     services: [],
     dependencies: [],
@@ -161,12 +161,13 @@ test("newcomer explores all catalogs and completes an isolated contribution loop
   await editor.click();
   await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
   await page.keyboard.type("# changed");
-  await page.waitForTimeout(550);
-  await page.getByRole("button", { name: "Previous" }).click();
-  await page.getByRole("button", { name: new RegExp(exercise.title) }).click();
-  await expect(page.locator(".exercise-editor .view-lines")).toContainText("changed");
+  await page.getByRole("button", { name: "package.json", exact: true }).click();
+  await editor.click();
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await page.keyboard.type('{"name":"changed-package"}');
   await page.getByRole("button", { name: "Verify" }).click();
-  await expect(page.locator(".verification-result.pass")).toContainText("README contains changed");
+  await expect(page.locator(".verification-result.pass")).toContainText("Both edited files contain their changes");
+  await expect.poll(async () => (await store.progress()).pages[exercise.id]).toMatchObject({ exerciseAttempted: true, verified: true });
   await page.getByRole("button", { name: "Export patch" }).click();
   await expect(page.locator(".patch-output")).toContainText("changed");
   await page.getByRole("button", { name: "Keep on branch" }).click();

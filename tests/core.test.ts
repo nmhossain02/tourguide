@@ -74,12 +74,22 @@ describe("repository discovery and state", () => {
 
   it("builds a playable local-development starter tour", async () => {
     const root = await repository();
-    const tour = await buildStarterTour(await inspectRepository(root));
+    const inventory = await inspectRepository(root);
+    const tour = await buildStarterTour(inventory);
     expect(tour.status).toBe("published");
     expect(tour.modules).toHaveLength(1);
     expect(tour.pages.length).toBeGreaterThanOrEqual(6);
     expect(tour.pages.every((page) => page.interactions.length > 0)).toBe(true);
-    expect((await validateSnapshot(tour, root)).valid).toBe(true);
+    const knowledge = await buildRepositoryKnowledge(inventory);
+    expect((await validateSnapshot(tour, root, { knowledge })).valid).toBe(true);
+    const unavailable = await validateSnapshot(tour, root);
+    expect(unavailable.errors).toContain(`Tour knowledge snapshot ${tour.knowledgeSnapshotId} was not available for validation.`);
+    expect((await validateSnapshot(tour, root, { partial: true })).warnings).toContain(`Tour knowledge snapshot ${tour.knowledgeSnapshotId} was not available for validation.`);
+    tour.documentationSnapshotId = "documentation:missing";
+    expect((await validateSnapshot(tour, root, { knowledge })).errors)
+      .toContain("Tour documentation snapshot documentation:missing was not available for validation.");
+    expect((await validateSnapshot(tour, root, { partial: true, knowledge })).warnings)
+      .toContain("Tour documentation snapshot documentation:missing was not available for validation.");
   });
 
   it("inspects an explicit historical ref without reading the newer working tree", async () => {
@@ -538,6 +548,45 @@ describe("process-local module labs", () => {
     expect(invoked).toMatchObject({ adapterId: "http", provenance: "production", value: { status: 200, body: "fixture" } });
     await manager.shutdown();
     await expect(fetch(`http://127.0.0.1:${service.port}/`, { signal: AbortSignal.timeout(500) })).rejects.toThrow();
+  });
+
+  it("waits for ports, selects the API service, and resets service state", async () => {
+    const root = await repository();
+    const tour = await buildStarterTour(await inspectRepository(root));
+    const module = tour.modules[0]!;
+    const service = (id: string, body: string, delay: number) => ({
+      id, title: id, portEnv: "PORT", healthTimeoutMs: 5_000,
+      recipe: {
+        id, title: id, command: process.execPath,
+        args: ["-e", `setTimeout(()=>require('http').createServer((q,r)=>r.end(${JSON.stringify(body)})).listen(Number(process.env.PORT),'127.0.0.1'),${delay})`],
+        cwd: ".", lifecycle: "service" as const, timeoutMs: 60_000, env: {}, inputs: [],
+        capabilities: { writes: [], network: "loopback" as const, secrets: [], containers: false, externalSystems: [] },
+      },
+    });
+    tour.labEnvironments = [{
+      id: "multi-service", moduleId: module.id, title: "Multi-service", adapterIds: ["http"], editablePaths: [],
+      preparationRecipes: [], dependencies: [], readiness: "ready",
+      services: [service("storybook", "preview", 0), service("api", "api", 250)],
+    }];
+    const manager = new LabManager(root);
+    const startedAt = Date.now();
+    const { session } = await manager.create(tour, module.id);
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(200);
+    const apiItem = {
+      id: "api:test", catalog: "api" as const, kind: "endpoint" as const, title: "GET /", summary: "API",
+      contentHash: "fixture", confidence: 1, readiness: "ready" as const, evidence: [], adapterId: "test", tags: [],
+      method: "GET", route: "/", authentication: [],
+    };
+    expect(await manager.invokeCapability(session.id, "service.request", { item: apiItem, inputs: {} })).toMatchObject({ value: { body: "api" } });
+    const oldPorts = session.services.map((state) => state.port);
+    const reset = await manager.reset(session.id);
+    expect(reset.session.services).toHaveLength(2);
+    expect(reset.session.services.every((state) => state.status === "ready")).toBe(true);
+    const newPorts = new Set(reset.session.services.map((state) => state.port));
+    for (const port of oldPorts.filter((candidate) => !newPorts.has(candidate))) {
+      await expect(fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(500) })).rejects.toThrow();
+    }
+    await manager.shutdown();
   });
 
   it("invokes JavaScript functions and SQLite through typed adapters", async () => {

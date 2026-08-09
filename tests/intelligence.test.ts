@@ -223,6 +223,105 @@ describe("intelligent Codex escalation and artifact reuse", () => {
     expect(runner.calls.runtime).toBe(1);
   });
 
+  it("refreshes a changed subject registry without rebuilding a compatible provider", async () => {
+    const { root, inventory } = await repository();
+    const store = new TourStore(root);
+    await store.initialize();
+    const firstKnowledge = await buildRepositoryKnowledge(inventory);
+    const firstDocumentation = (await import("../packages/core/src/documentation.js")).buildLivingDocumentation(firstKnowledge);
+    const runner = new FakeIntelligenceRunner();
+    runner.documentation = firstDocumentation;
+    const coordinator = new IntelligenceCoordinator(root, store, runner as never);
+    const resolvedDocumentation = (await coordinator.reconcileDocumentation(firstKnowledge)).documentation;
+    runner.documentation = resolvedDocumentation;
+    const first = await coordinator.resolveRuntimeProviders(resolvedDocumentation, inventory);
+    const runtimeCalls = runner.calls.runtime;
+
+    await writeFile(join(root, "Card.tsx"), "export function Card({ title }: { title: string }) { return <article>{title}</article> }\n");
+    await exec("git", ["-C", root, "add", "Card.tsx"]);
+    await exec("git", ["-C", root, "commit", "-m", "add card"]);
+    const nextInventory = await inspectRepository(root);
+    const nextKnowledge = await buildRepositoryKnowledge(nextInventory);
+    const nextDocumentation = (await import("../packages/core/src/documentation.js")).buildLivingDocumentation(nextKnowledge, first.documentation);
+    runner.documentation = nextDocumentation;
+    const refreshed = await coordinator.resolveRuntimeProviders(nextDocumentation, nextInventory);
+
+    expect(refreshed.stats.coldCalls).toBe(0);
+    expect(runner.calls.runtime).toBe(runtimeCalls);
+    expect(refreshed.artifacts.find((artifact) => artifact.profileId === "frontend:main")?.cacheKey)
+      .toBe(first.artifacts.find((artifact) => artifact.profileId === "frontend:main")?.cacheKey);
+    expect(refreshed.documentation.runtimeProfiles.find((profile) => profile.id === "frontend:main")?.probeStatus).toBe("pass");
+  });
+
+  it("escalates after a deterministic provider fails its executable probe", async () => {
+    const { root } = await repository();
+    await writeFile(join(root, "schema.sql"), "CREATE TABLE notes (id INTEGER PRIMARY KEY);\nTHIS IS NOT SQLITE;\n");
+    await exec("git", ["-C", root, "add", "schema.sql"]);
+    await exec("git", ["-C", root, "commit", "-m", "break deterministic schema probe"]);
+    const inventory = await inspectRepository(root);
+    const knowledge = await buildRepositoryKnowledge(inventory);
+    const documentation = (await import("../packages/core/src/documentation.js")).buildLivingDocumentation(knowledge);
+    documentation.runtimeProfiles = documentation.runtimeProfiles.filter((profile) => profile.domain === "data-model");
+    let runtimeCalls = 0;
+    const runner = {
+      async run() {
+        runtimeCalls += 1;
+        return {
+          value: RuntimeSynthesisBatchSchema.parse({ providers: documentation.runtimeProfiles.map((profile) => ({
+            profileId: profile.id, title: "Generated data probe", capabilities: profile.capabilities, files: [], preparationRecipes: [], services: [],
+            invocations: [{
+              capability: "data.query", kind: "command", result: "json",
+              recipe: {
+                id: "generated-data", title: "Generated data", command: process.execPath,
+                args: ["-e", "console.log(JSON.stringify({ok:true}))"], cwdMode: "repository", lifecycle: "oneshot", timeoutMs: 5_000,
+                env: [], inputs: [], capabilities: { writes: [], network: "none", secrets: [], containers: false, externalSystems: [] },
+              },
+            }],
+          })) }),
+          threadId: "00000000-0000-4000-8000-000000000001",
+          usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 1 }, messages: [],
+        };
+      },
+    };
+    const store = new TourStore(root);
+    await store.initialize();
+    const result = await new IntelligenceCoordinator(root, store, runner as never).resolveRuntimeProviders(documentation, inventory);
+    expect(runtimeCalls).toBe(1);
+    expect(result.artifacts).toContainEqual(expect.objectContaining({ source: "generated", validation: expect.objectContaining({ status: "pass" }) }));
+  });
+
+  it("rejects generated write declarations outside the provider root", async () => {
+    const { root, inventory } = await repository();
+    const knowledge = await buildRepositoryKnowledge(inventory);
+    const documentation = (await import("../packages/core/src/documentation.js")).buildLivingDocumentation(knowledge);
+    documentation.runtimeProfiles = documentation.runtimeProfiles.filter((profile) => profile.domain === "compute");
+    const runner = {
+      async run() {
+        const profile = documentation.runtimeProfiles[0]!;
+        return {
+          value: RuntimeSynthesisBatchSchema.parse({ providers: [{
+            profileId: profile.id, title: "Unsafe provider", capabilities: profile.capabilities, files: [], preparationRecipes: [], services: [],
+            invocations: [{
+              capability: "code.invoke", kind: "command", result: "json",
+              recipe: {
+                id: "unsafe", title: "Unsafe", command: process.execPath, args: ["-e", "console.log('{}')"], cwdMode: "repository",
+                lifecycle: "oneshot", timeoutMs: 5_000, env: [], inputs: [],
+                capabilities: { writes: ["README.md"], network: "none", secrets: [], containers: false, externalSystems: [] },
+              },
+            }],
+          }] }),
+          threadId: "00000000-0000-4000-8000-000000000001",
+          usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 1 }, messages: [],
+        };
+      },
+    };
+    const store = new TourStore(root);
+    await store.initialize();
+    const result = await new IntelligenceCoordinator(root, store, runner as never).resolveRuntimeProviders(documentation, inventory);
+    expect(result.artifacts).toEqual([]);
+    expect(result.documentation.runtimeProfiles[0]?.probeStatus).not.toBe("pass");
+  });
+
   it("assesses a material tour change once and reuses the semantic assessment", async () => {
     const { root, inventory: firstInventory } = await repository();
     const store = new TourStore(root);

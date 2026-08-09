@@ -70,17 +70,22 @@ export async function validateSnapshot(
   const errors: string[] = [];
   const warnings: string[] = [];
   const knowledgeItems = options.knowledge ? new Map(allKnowledgeItems(options.knowledge).map((item) => [item.id, item])) : undefined;
+  if (!options.knowledge) {
+    const message = `Tour knowledge snapshot ${snapshot.knowledgeSnapshotId} was not available for validation.`;
+    (options.partial ? warnings : errors).push(message);
+  }
   if (options.knowledge && options.knowledge.id !== snapshot.knowledgeSnapshotId) {
     errors.push(`Tour knowledge snapshot ${snapshot.knowledgeSnapshotId} does not match ${options.knowledge.id}.`);
   }
   if (snapshot.documentationSnapshotId && options.documentation && options.documentation.id !== snapshot.documentationSnapshotId) {
     errors.push(`Tour documentation snapshot ${snapshot.documentationSnapshotId} does not match ${options.documentation.id}.`);
   } else if (snapshot.documentationSnapshotId && !options.documentation) {
-    warnings.push(`Tour documentation snapshot ${snapshot.documentationSnapshotId} was not available for validation.`);
+    const message = `Tour documentation snapshot ${snapshot.documentationSnapshotId} was not available for validation.`;
+    (options.partial ? warnings : errors).push(message);
   }
   const validateKnowledgeRef = (reference: KnowledgeRef, owner: string) => {
     if (!knowledgeItems) {
-      warnings.push(`${owner} has a knowledge reference that was not checked against a catalog.`);
+      if (options.partial) warnings.push(`${owner} has a knowledge reference that was not checked against a catalog.`);
       return;
     }
     const item = knowledgeItems.get(reference.itemId);
@@ -89,7 +94,7 @@ export async function validateSnapshot(
   };
   const validateDocumentationBinding = (binding: SemanticBinding, owner: string) => {
     if (!options.documentation) {
-      warnings.push(`${owner} has a semantic documentation binding that was not resolved.`);
+      if (options.partial) warnings.push(`${owner} has a semantic documentation binding that was not resolved.`);
       return;
     }
     const resolution = resolveSemanticBinding(options.documentation, binding);

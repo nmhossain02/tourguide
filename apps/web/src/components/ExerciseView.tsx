@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { CheckCircle2, Code2, Copy, Download, GitBranch, Play, RotateCcw, XCircle } from "lucide-react";
 
@@ -12,6 +12,7 @@ interface BrowserLabState {
   activePath?: string;
   content: string;
   patch: string;
+  dirtyPaths: string[];
 }
 
 const browserLabs = new Map<string, BrowserLabState>();
@@ -36,7 +37,7 @@ function ResultOutput({ verification }: { verification: VerificationResult | und
   </section>;
 }
 
-export function ExerciseView({ page, onAttempt, onVerified }: { page: Page; onAttempt(): void; onVerified(): void }) {
+export function ExerciseView({ page, onProgress }: { page: Page; onProgress(patch: { exerciseAttempted?: boolean; verified?: boolean }): void }) {
   const exercise = page.exercise!;
   const cached = browserLabs.get(page.moduleId);
   const [session, setSession] = useState<LabSession | undefined>(cached?.session);
@@ -48,6 +49,14 @@ export function ExerciseView({ page, onAttempt, onVerified }: { page: Page; onAt
   const [hintCount, setHintCount] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const dirtyPaths = useRef(new Set(cached?.dirtyPaths ?? []));
+  const saveWrites = useRef(Promise.resolve());
+
+  const queueSave = (sessionId: string, path: string, value: string) => {
+    const write = saveWrites.current.catch(() => undefined).then(() => api.saveExerciseFile(sessionId, path, value)).then(() => undefined);
+    saveWrites.current = write.catch(() => undefined);
+    return write;
+  };
 
   useEffect(() => {
     browserLabs.set(page.moduleId, {
@@ -56,20 +65,24 @@ export function ExerciseView({ page, onAttempt, onVerified }: { page: Page; onAt
       ...(activePath ? { activePath } : {}),
       content,
       patch,
+      dirtyPaths: [...dirtyPaths.current],
     });
   }, [page.moduleId, session, files, activePath, content, patch]);
 
   useEffect(() => {
-    if (!session || !activePath) return;
+    if (!session || !activePath || !dirtyPaths.current.has(activePath)) return;
+    const path = activePath;
+    const value = content;
     const timer = window.setTimeout(() => {
-      void api.saveExerciseFile(session.id, activePath, content).then(() => {
-        setFiles((current) => current.map((file) => file.path === activePath ? { ...file, content } : file));
+      void queueSave(session.id, path, value).then(() => {
+        setFiles((current) => current.map((file) => file.path === path ? { ...file, content: value } : file));
       }).catch((reason) => setError(errorMessage(reason)));
     }, 450);
     return () => window.clearTimeout(timer);
   }, [session?.id, activePath, content]);
 
   const installFiles = (nextFiles: LabFile[]) => {
+    dirtyPaths.current.clear();
     setFiles(nextFiles);
     const selectedFile = nextFiles.find((file) => file.path === activePath) ?? nextFiles[0];
     setActivePath(selectedFile?.path);
@@ -83,7 +96,7 @@ export function ExerciseView({ page, onAttempt, onVerified }: { page: Page; onAt
       const created = await api.createExercise(page.id);
       setSession(created.session);
       installFiles(created.files);
-      onAttempt();
+      onProgress({ exerciseAttempted: true });
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -92,12 +105,12 @@ export function ExerciseView({ page, onAttempt, onVerified }: { page: Page; onAt
   };
 
   const save = async () => {
-    if (!session || !activePath) return;
-
-    await api.saveExerciseFile(session.id, activePath, content);
-    setFiles((current) => current.map((file) => (
-      file.path === activePath ? { ...file, content } : file
-    )));
+    if (!session) return;
+    const pending = files.map((file) => file.path === activePath ? { ...file, content } : file)
+      .filter((file) => dirtyPaths.current.has(file.path));
+    for (const file of pending) await queueSave(session.id, file.path, file.content);
+    for (const file of pending) dirtyPaths.current.delete(file.path);
+    setFiles((current) => current.map((file) => file.path === activePath ? { ...file, content } : file));
   };
 
   const run = async (action: "verify" | "format") => {
@@ -109,11 +122,11 @@ export function ExerciseView({ page, onAttempt, onVerified }: { page: Page; onAt
       await save();
       const nextVerification = await api.runExercise(session.id, page.id, action);
       setVerification(nextVerification);
-      if (action === "verify" && nextVerification.status === "pass") onVerified();
+      const passed = action === "verify" && nextVerification.status === "pass";
       if (action === "format") {
         installFiles((await api.exerciseFiles(session.id)).files);
       }
-      onAttempt();
+      onProgress({ exerciseAttempted: true, ...(passed ? { verified: true } : {}) });
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -176,6 +189,13 @@ export function ExerciseView({ page, onAttempt, onVerified }: { page: Page; onAt
     setContent(file.content);
   };
 
+  const changeContent = (value: string) => {
+    setContent(value);
+    if (!activePath) return;
+    dirtyPaths.current.add(activePath);
+    setFiles((current) => current.map((file) => file.path === activePath ? { ...file, content: value } : file));
+  };
+
   return (
     <div className="workspace-card exercise-workspace">
       <div className="workspace-toolbar">
@@ -223,7 +243,7 @@ export function ExerciseView({ page, onAttempt, onVerified }: { page: Page; onAt
                 height="360px"
                 language={editorLanguageForPath(activePath ?? "")}
                 value={content}
-                onChange={(value) => setContent(value ?? "")}
+                onChange={(value) => changeContent(value ?? "")}
                 theme="vs-dark"
                 onMount={(editor) => editor.getDomNode()?.querySelector("textarea")?.setAttribute("name", "exercise-editor")}
                 options={{

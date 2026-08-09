@@ -18,6 +18,7 @@ import {
   LivingDocumentationSnapshotSchema,
   DocumentationInferenceArtifactSchema,
   RuntimeProviderArtifactSchema,
+  RuntimeSubjectRegistryArtifactSchema,
   TourImpactAssessmentArtifactSchema,
   type ExerciseSession,
   type DiagnosticReport,
@@ -30,6 +31,7 @@ import {
   type LivingDocumentationSnapshot,
   type DocumentationInferenceArtifact,
   type RuntimeProviderArtifact,
+  type RuntimeSubjectRegistryArtifact,
   type TourImpactAssessmentArtifact,
 } from "./schema.js";
 
@@ -178,6 +180,16 @@ export class TourStore {
   async saveRuntimeProviderArtifact(value: RuntimeProviderArtifact): Promise<void> {
     const parsed = RuntimeProviderArtifactSchema.parse(value);
     await atomicJson(join(this.base, "cache", "intelligence", "runtime", `${encodeURIComponent(parsed.cacheKey)}.json`), parsed);
+  }
+
+  async runtimeSubjectRegistryArtifact(cacheKey: string): Promise<RuntimeSubjectRegistryArtifact | undefined> {
+    const value = await readJson(join(this.base, "cache", "intelligence", "runtime-registry", `${encodeURIComponent(cacheKey)}.json`));
+    return value === undefined ? undefined : RuntimeSubjectRegistryArtifactSchema.parse(value);
+  }
+
+  async saveRuntimeSubjectRegistryArtifact(value: RuntimeSubjectRegistryArtifact): Promise<void> {
+    const parsed = RuntimeSubjectRegistryArtifactSchema.parse(value);
+    await atomicJson(join(this.base, "cache", "intelligence", "runtime-registry", `${encodeURIComponent(parsed.cacheKey)}.json`), parsed);
   }
 
   async tourImpactArtifact(cacheKey: string): Promise<TourImpactAssessmentArtifact | undefined> {

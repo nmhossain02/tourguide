@@ -249,7 +249,11 @@ export async function startMcpServer(start?: string): Promise<void> {
     const selected = await context();
     const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    return result({ ...(await validateSnapshot(draft, selected.root, { partial })), pageCount: draft.pages.length });
+    const [knowledge, documentation] = await Promise.all([
+      selected.store.knowledge(draft.knowledgeSnapshotId),
+      draft.documentationSnapshotId ? selected.store.documentation(draft.documentationSnapshotId) : undefined,
+    ]);
+    return result({ ...(await validateSnapshot(draft, selected.root, { partial, knowledge, documentation })), pageCount: draft.pages.length });
   });
 
   server.tool("publish_snapshot", "Publish a valid complete draft.", {
@@ -258,7 +262,11 @@ export async function startMcpServer(start?: string): Promise<void> {
     const selected = await context();
     const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const report = await validateSnapshot(draft, selected.root);
+    const [knowledge, documentation] = await Promise.all([
+      selected.store.knowledge(draft.knowledgeSnapshotId),
+      draft.documentationSnapshotId ? selected.store.documentation(draft.documentationSnapshotId) : undefined,
+    ]);
+    const report = await validateSnapshot(draft, selected.root, { knowledge, documentation });
     if (!report.valid) throw new Error(`Snapshot is not publishable:\n${report.errors.join("\n")}`);
     await selected.store.publish(draft);
     return result({ published: true, snapshotId, warnings: report.warnings });

@@ -141,8 +141,18 @@ function functionSupport(_context: LabAdapterContext, request: LabInvocation): b
   return request.item.catalog === "code-docs" && request.item.kind === "symbol" && Boolean(request.item.path && /\.(mjs|cjs|js)$/.test(request.item.path));
 }
 
+function selectedHttpService(context: LabAdapterContext, request: LabInvocation): LabServiceState | undefined {
+  const ready = context.session.services.filter((service) => service.status === "ready");
+  const requestedId = typeof request.inputs.serviceId === "string" ? request.inputs.serviceId : undefined;
+  if (requestedId) return ready.find((service) => service.id === requestedId);
+  const apiServices = ready.filter((service) => /(?:^|[-_:])(api|http|backend|server)(?:$|[-_:])/i.test(`-${service.id}-`));
+  if (apiServices.length === 1) return apiServices[0];
+  const nonPreview = ready.filter((service) => !/(?:story|preview|storybook)/i.test(service.id));
+  return nonPreview.length === 1 ? nonPreview[0] : undefined;
+}
+
 function httpSupport(context: LabAdapterContext, request: LabInvocation): boolean {
-  return request.item.catalog === "api" && Boolean(request.item.route) && context.session.services.some((service) => service.status === "ready");
+  return request.item.catalog === "api" && Boolean(request.item.route) && Boolean(selectedHttpService(context, request));
 }
 
 function sqliteSupport(_context: LabAdapterContext, request: LabInvocation): boolean {
@@ -176,7 +186,7 @@ async function functionInvocation(context: LabAdapterContext, request: LabInvoca
 
 async function httpInvocation(context: LabAdapterContext, request: LabInvocation): Promise<LabInvocationResult> {
   if (request.item.catalog !== "api" || !request.item.route) throw new Error("HTTP interactions require an indexed API endpoint.");
-  const service = context.session.services.find((candidate) => candidate.status === "ready");
+  const service = selectedHttpService(context, request);
   if (!service) throw new Error("The lab environment has no ready HTTP service.");
   const route = request.item.route.replace(/[{:]([A-Za-z_][\w]*)}?/g, (token, key: string) => key in request.inputs ? encodeURIComponent(String(request.inputs[key])) : token);
   const url = new URL(route, `http://127.0.0.1:${service.port}`);
@@ -314,6 +324,7 @@ async function invokeRuntimeProvider(
     return { adapterId: provider.id, provenance: "tourguide-harness", value: { url: url.toString() }, logs: [] };
   }
   const result = await runRecipeInWorkspace(context.session.workspace, invocation.recipe!, false, invocationValues(invocation.recipe!, request));
+  if (result.undeclaredWrites.length) throw new Error(`Runtime provider wrote outside its declaration: ${result.undeclaredWrites.join(", ")}.`);
   if (result.exitCode !== 0 || result.timedOut) throw new Error(result.stderr || result.stdout || `Runtime provider ${provider.id} failed.`);
   const output = result.stdout.trim();
   let value: unknown = output;
@@ -451,11 +462,45 @@ async function waitForHealth(url: string, timeoutMs: number, child: ChildProcess
   throw new Error(`Service health check timed out: ${url}`);
 }
 
+async function waitForPort(port: number, timeoutMs: number, child: ChildProcess): Promise<void> {
+  const { createConnection } = await import("node:net");
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) throw new Error("Service exited before binding its allocated port.");
+    const connected = await new Promise<boolean>((resolveConnection) => {
+      const socket = createConnection({ host: "127.0.0.1", port });
+      socket.setTimeout(500);
+      socket.once("connect", () => { socket.destroy(); resolveConnection(true); });
+      socket.once("timeout", () => { socket.destroy(); resolveConnection(false); });
+      socket.once("error", () => resolveConnection(false));
+    });
+    if (connected) return;
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+  }
+  throw new Error(`Service port readiness timed out: ${port}`);
+}
+
 function terminate(child: ChildProcess): void {
   if (child.exitCode !== null) return;
   if (process.platform !== "win32" && child.pid) {
     try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
   } else child.kill("SIGTERM");
+}
+
+async function terminateAndWait(child: ChildProcess): Promise<void> {
+  if (child.exitCode !== null) return;
+  const closed = new Promise<void>((resolveClose) => child.once("close", () => resolveClose()));
+  terminate(child);
+  const graceful = await Promise.race([
+    closed.then(() => true),
+    new Promise<false>((resolveTimeout) => setTimeout(() => resolveTimeout(false), 2_000)),
+  ]);
+  if (!graceful && child.exitCode === null) {
+    if (process.platform !== "win32" && child.pid) {
+      try { process.kill(-child.pid, "SIGKILL"); } catch { child.kill("SIGKILL"); }
+    } else child.kill("SIGKILL");
+    await closed;
+  }
 }
 
 interface InternalLab {
@@ -486,6 +531,13 @@ export class LabManager {
     internal.session.updatedAt = new Date().toISOString();
     internal.session.expiresAt = new Date(Date.now() + this.idleTimeoutMs).toISOString();
     return internal;
+  }
+
+  private async stopServices(internal: InternalLab): Promise<void> {
+    for (const state of internal.session.services) state.status = "stopped";
+    await Promise.all([...internal.processes.values()].map(terminateAndWait));
+    internal.processes.clear();
+    internal.session.services = [];
   }
 
   get(id: string): LabSession {
@@ -574,6 +626,7 @@ export class LabManager {
     child.stdout?.on("data", (chunk: Buffer) => { state.stdout = appendBounded(state.stdout, chunk); });
     child.stderr?.on("data", (chunk: Buffer) => { state.stderr = appendBounded(state.stderr, chunk); });
     child.once("close", () => { if (state.status !== "stopped") state.status = "failed"; });
+    await waitForPort(port, definition.healthTimeoutMs, child);
     if (healthUrl) await waitForHealth(healthUrl, definition.healthTimeoutMs, child);
     state.status = "ready";
   }
@@ -657,8 +710,7 @@ export class LabManager {
   async reset(id: string): Promise<{ session: LabSession; files: LabFile[] }> {
     const internal = this.require(id);
     if (internal.session.status === "retained") throw new Error("A retained lab cannot be reset.");
-    for (const process of internal.processes.values()) terminate(process);
-    internal.processes.clear();
+    await this.stopServices(internal);
     await removeWorktree(this.root, internal.session.workspace);
     await addWorktree(this.root, internal.session.workspace, internal.session.commit);
     await materializeRuntimeProviders(internal.session.workspace, internal.environment.runtimeProviders);
@@ -680,14 +732,14 @@ export class LabManager {
     internal.session.status = "retained";
     internal.session.retainedBranch = branch;
     internal.session.updatedAt = new Date().toISOString();
-    for (const process of internal.processes.values()) terminate(process);
+    await this.stopServices(internal);
     return { ...internal.session };
   }
 
   async close(id: string, forceRemoveRetained = false): Promise<void> {
     const internal = this.#sessions.get(id);
     if (!internal) return;
-    for (const process of internal.processes.values()) terminate(process);
+    await this.stopServices(internal);
     const context = { root: this.root, snapshot: internal.snapshot, module: internal.module, environment: internal.environment, session: internal.session };
     for (const adapter of internal.environment.adapterIds.map((adapterId) => this.registry.require(adapterId)).reverse()) await adapter.close?.(context);
     const retained = internal.session.status === "retained";

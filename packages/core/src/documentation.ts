@@ -201,7 +201,7 @@ function profileFor(
       domain,
       ...relevantConfiguration.map((file) => [file.path, file.contentHash]),
     ]),
-    subjectRegistryFingerprint: hash(subjects.map((subject) => [subject.id, subject.contractFingerprint]).sort()),
+    subjectRegistryFingerprint: hash(subjects.map((subject) => [subject.id, subject.contractFingerprint, subject.evidenceFingerprint]).sort()),
     readiness: "ready",
     probeStatus: "unprobed",
   };

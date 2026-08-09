@@ -278,8 +278,7 @@ function Workspace({
         <ExerciseView
           key={page.id}
           page={page}
-          onAttempt={() => onUpdateProgress(page.id, { exerciseAttempted: true })}
-          onVerified={() => onUpdateProgress(page.id, { verified: true })}
+          onProgress={(patch) => onUpdateProgress(page.id, patch)}
         />
       ) : selectedInteraction ? (
         <InteractionView

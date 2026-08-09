@@ -33,6 +33,12 @@ export function App() {
   const [error, setError] = useState<string>();
   const [viewerTarget, setViewerTarget] = useState<ViewerTarget | null>();
   const lastEventId = useRef(0);
+  const dataRef = useRef<BootstrapPayload>();
+  const progressWrites = useRef(Promise.resolve());
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   useEffect(() => {
     api.bootstrap()
@@ -85,42 +91,35 @@ export function App() {
   const module = page && tour?.modules.find((candidate) => candidate.id === page.moduleId);
   const track = module && tour?.tracks.find((candidate) => candidate.moduleIds.includes(module.id));
 
-  const updateProgress = useCallback(async (
+  const updateProgress = useCallback((
     id: string,
     patch: Partial<Progress["pages"][string]>,
   ) => {
-    if (!data) return;
-
-    const now = new Date().toISOString();
-    const currentPageProgress = data.progress.pages[id] ?? {
-      viewed: false,
-      demonstrated: false,
-      exerciseAttempted: false,
-      verified: false,
-      completed: false,
-      blocked: false,
-      stale: false,
-      revisit: false,
-      updatedAt: now,
-    };
-    const pages = {
-      ...data.progress.pages,
-      [id]: { ...currentPageProgress, ...patch, updatedAt: now },
-    };
-    const pageModule = data.tour?.modules.find((candidate) => candidate.pageIds.includes(id));
-    const moduleComplete = pageModule?.pageIds.every((pageId) => pages[pageId]?.completed) ?? false;
-    const progress: Progress = {
-      schemaVersion: 3,
-      pages,
-      modules: pageModule ? {
-        ...data.progress.modules,
-        [pageModule.id]: { completed: moduleComplete, updatedAt: now },
-      } : data.progress.modules,
-    };
-
-    setData({ ...data, progress });
-    await api.progress(progress);
-  }, [data]);
+    progressWrites.current = progressWrites.current.then(async () => {
+      const current = dataRef.current;
+      if (!current) return;
+      const now = new Date().toISOString();
+      const currentPageProgress = current.progress.pages[id] ?? {
+        viewed: false, demonstrated: false, exerciseAttempted: false, verified: false,
+        completed: false, blocked: false, stale: false, revisit: false, updatedAt: now,
+      };
+      const pages = { ...current.progress.pages, [id]: { ...currentPageProgress, ...patch, updatedAt: now } };
+      const pageModule = current.tour?.modules.find((candidate) => candidate.pageIds.includes(id));
+      const progress: Progress = {
+        schemaVersion: 3,
+        pages,
+        modules: pageModule ? {
+          ...current.progress.modules,
+          [pageModule.id]: { completed: pageModule.pageIds.every((pageId) => pages[pageId]?.completed), updatedAt: now },
+        } : current.progress.modules,
+      };
+      const next = { ...current, progress };
+      dataRef.current = next;
+      setData((visible) => visible ? { ...visible, progress } : visible);
+      await api.progress(progress);
+    }).catch((reason) => setError(errorText(reason)));
+    return progressWrites.current;
+  }, []);
 
   useEffect(() => {
     if (page && !data?.progress.pages[page.id]?.viewed) {

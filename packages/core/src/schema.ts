@@ -605,6 +605,22 @@ export const RuntimeProviderArtifactSchema = z.object({
   validation: IntelligenceValidationSchema,
 });
 
+export const RuntimeSubjectRegistryArtifactSchema = z.object({
+  schemaVersion: z.literal(1),
+  id: z.string().min(1),
+  cacheKey: z.string().min(1),
+  providerCacheKey: z.string().min(1),
+  profileId: z.string().min(1),
+  subjectRegistryFingerprint: z.string().min(1),
+  subjects: z.array(z.object({
+    id: z.string().min(1),
+    contractFingerprint: z.string().min(1),
+    evidenceFingerprint: z.string().min(1),
+  })),
+  generatedAt: z.string(),
+  validation: IntelligenceValidationSchema,
+});
+
 export const TourImpactAssessmentArtifactSchema = z.object({
   schemaVersion: z.literal(1),
   id: z.string().min(1),
@@ -944,6 +960,7 @@ export type DocumentationInferenceArtifact = z.infer<typeof DocumentationInferen
 export type RuntimeProviderFile = z.infer<typeof RuntimeProviderFileSchema>;
 export type RuntimeProviderInvocation = z.infer<typeof RuntimeProviderInvocationSchema>;
 export type RuntimeProviderArtifact = z.infer<typeof RuntimeProviderArtifactSchema>;
+export type RuntimeSubjectRegistryArtifact = z.infer<typeof RuntimeSubjectRegistryArtifactSchema>;
 export type TourImpactAssessmentArtifact = z.infer<typeof TourImpactAssessmentArtifactSchema>;
 export type SemanticBinding = z.infer<typeof SemanticBindingSchema>;
 export type KnowledgeRef = z.infer<typeof KnowledgeRefSchema>;
