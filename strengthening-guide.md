@@ -91,5 +91,3 @@ Implementation notes:
     - Undeniably this application works most effectively and efficiently on codebases that are well structured
     - Not entirely sure how to deal with this lol
     - Suggesting refactors to allow for the right level of modularity to enable tourguide to work well is a start, perhaps a skill of our own or another leveraged for re-use could help us achieve this as well
-    
-

@@ -253,7 +253,14 @@ export async function startMcpServer(start?: string): Promise<void> {
       selected.store.knowledge(draft.knowledgeSnapshotId),
       draft.documentationSnapshotId ? selected.store.documentation(draft.documentationSnapshotId) : undefined,
     ]);
-    return result({ ...(await validateSnapshot(draft, selected.root, { partial, knowledge, documentation })), pageCount: draft.pages.length });
+    return result({
+      ...(await validateSnapshot(draft, selected.root, {
+        partial,
+        ...(knowledge ? { knowledge } : {}),
+        ...(documentation ? { documentation } : {}),
+      })),
+      pageCount: draft.pages.length,
+    });
   });
 
   server.tool("publish_snapshot", "Publish a valid complete draft.", {
@@ -266,7 +273,10 @@ export async function startMcpServer(start?: string): Promise<void> {
       selected.store.knowledge(draft.knowledgeSnapshotId),
       draft.documentationSnapshotId ? selected.store.documentation(draft.documentationSnapshotId) : undefined,
     ]);
-    const report = await validateSnapshot(draft, selected.root, { knowledge, documentation });
+    const report = await validateSnapshot(draft, selected.root, {
+      ...(knowledge ? { knowledge } : {}),
+      ...(documentation ? { documentation } : {}),
+    });
     if (!report.valid) throw new Error(`Snapshot is not publishable:\n${report.errors.join("\n")}`);
     await selected.store.publish(draft);
     return result({ published: true, snapshotId, warnings: report.warnings });

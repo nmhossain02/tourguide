@@ -1,6 +1,6 @@
 # Contributing
 
-Use Node.js 24 LTS (22 or newer is supported), Git, and Corepack.
+Use Node.js 24 LTS (22.13 or newer is supported), Git, and Corepack.
 
 ```bash
 corepack pnpm install

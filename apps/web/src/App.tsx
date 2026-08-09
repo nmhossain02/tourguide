@@ -33,7 +33,7 @@ export function App() {
   const [error, setError] = useState<string>();
   const [viewerTarget, setViewerTarget] = useState<ViewerTarget | null>();
   const lastEventId = useRef(0);
-  const dataRef = useRef<BootstrapPayload>();
+  const dataRef = useRef<BootstrapPayload | undefined>(undefined);
   const progressWrites = useRef(Promise.resolve());
 
   useEffect(() => {
