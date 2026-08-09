@@ -6,12 +6,45 @@ import {
   EvidenceRefSchema,
   InteractionSchema,
   KnowledgeCheckSchema,
+  ModuleSchema,
+  PageSchema,
+  CoverageEntrySchema,
+  TrackSchema,
+  PageProgressSchema,
   PreferencesSchema,
   ProgressSchema,
   TourSnapshotSchema,
   type Progress,
   type TourSnapshot,
 } from "./schema.js";
+import { knowledgeSnapshotId } from "./knowledge.js";
+
+const LegacyUrlReferenceSchema = z.object({ title: z.string(), url: z.url() });
+const LegacyV2PageSchema = PageSchema.omit({ references: true }).extend({
+  references: z.array(LegacyUrlReferenceSchema).default([]),
+});
+
+const LegacyV2SnapshotSchema = z.object({
+  schemaVersion: z.literal(2),
+  id: z.string(),
+  projectName: z.string(),
+  repositoryRoot: z.string(),
+  anchor: z.object({ ref: z.string(), commit: z.string().regex(/^[0-9a-f]{40}$/) }),
+  generatedAt: z.string(),
+  generator: z.string().default("tourguide"),
+  promptVersion: z.number().int().positive().default(2),
+  status: z.enum(["draft", "partial", "published"]).default("draft"),
+  tracks: z.array(TrackSchema),
+  modules: z.array(ModuleSchema),
+  pages: z.array(LegacyV2PageSchema),
+  coverage: z.array(CoverageEntrySchema).default([]),
+  dependencies: z.record(z.string(), z.array(z.string())).default({}),
+});
+
+const LegacyV2ProgressSchema = z.object({
+  schemaVersion: z.literal(2).default(2),
+  pages: z.record(z.string(), PageProgressSchema).default({}),
+});
 
 const LegacyLessonSchema = z.object({
   id: z.string(),
@@ -70,6 +103,27 @@ function pageKind(title: string, interactions: z.infer<typeof InteractionSchema>
 export function parseSnapshot(value: unknown): { snapshot: TourSnapshot; migrated: boolean } {
   const current = TourSnapshotSchema.safeParse(value);
   if (current.success) return { snapshot: current.data, migrated: false };
+  const versionTwo = LegacyV2SnapshotSchema.safeParse(value);
+  if (versionTwo.success) {
+    const legacy = versionTwo.data;
+    return {
+      migrated: true,
+      snapshot: TourSnapshotSchema.parse({
+        ...legacy,
+        schemaVersion: 3,
+        promptVersion: Math.max(3, legacy.promptVersion),
+        generator: `${legacy.generator}-v2-migration`,
+        knowledgeSnapshotId: knowledgeSnapshotId(legacy.anchor.commit),
+        knowledgeRefs: [],
+        featureJourneys: [],
+        labEnvironments: [],
+        pages: legacy.pages.map((page) => ({
+          ...page,
+          references: page.references.map((reference) => ({ type: "external" as const, ...reference })),
+        })),
+      }),
+    };
+  }
   const legacy = LegacySnapshotSchema.parse(value);
   const modules = legacy.tracks.map((track) => {
     const moduleId = `${track.id}-module`;
@@ -105,14 +159,14 @@ export function parseSnapshot(value: unknown): { snapshot: TourSnapshot; migrate
   return {
     migrated: true,
     snapshot: TourSnapshotSchema.parse({
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: legacy.id || randomUUID(),
       projectName: legacy.projectName,
       repositoryRoot: legacy.repositoryRoot,
       anchor: { ref: legacy.branch || legacy.head, commit: legacy.head },
       generatedAt: legacy.generatedAt,
       generator: `${legacy.generator}-v1-migration`,
-      promptVersion: 2,
+      promptVersion: 3,
       status: legacy.status,
       tracks: legacy.tracks.map((track) => ({
         id: track.id,
@@ -136,7 +190,7 @@ export function parseSnapshot(value: unknown): { snapshot: TourSnapshot; migrate
         evidence: lesson.evidence,
         interactions: lesson.interactions,
         knowledgeCheck: lesson.knowledgeCheck,
-        references: lesson.references.slice(0, 3),
+        references: lesson.references.slice(0, 3).map((reference) => ({ type: "external" as const, ...reference })),
       })),
       coverage: [
         {
@@ -160,31 +214,49 @@ export function parseSnapshot(value: unknown): { snapshot: TourSnapshot; migrate
         })),
       ],
       dependencies: legacy.dependencies,
+      knowledgeSnapshotId: knowledgeSnapshotId(legacy.head),
+      knowledgeRefs: [],
+      featureJourneys: [],
+      labEnvironments: [],
     }),
   };
 }
 
 export function parseProgress(value: unknown): { progress: Progress; migrated: boolean } {
   const looksCurrent = Boolean(value && typeof value === "object" && (
-    (value as Record<string, unknown>).schemaVersion === 2
+    (value as Record<string, unknown>).schemaVersion === 3
     || "pages" in (value as Record<string, unknown>)
   ));
   const current = looksCurrent ? ProgressSchema.safeParse(value) : undefined;
   if (current?.success) return { progress: current.data, migrated: false };
+  const hasV2Shape = Boolean(value && typeof value === "object" && (
+    (value as Record<string, unknown>).schemaVersion === 2
+    || "pages" in (value as Record<string, unknown>)
+  ));
+  const versionTwo = hasV2Shape ? LegacyV2ProgressSchema.safeParse(value) : undefined;
+  if (versionTwo?.success) {
+    return {
+      migrated: true,
+      progress: ProgressSchema.parse({ schemaVersion: 3, pages: versionTwo.data.pages, modules: {} }),
+    };
+  }
   const legacy = LegacyProgressSchema.parse(value ?? {});
   return {
     migrated: true,
     progress: ProgressSchema.parse({
-      schemaVersion: 2,
+      schemaVersion: 3,
       pages: Object.fromEntries(Object.entries(legacy.lessons).map(([id, state]) => [id, {
         viewed: state.viewed,
         demonstrated: state.experimented,
-        exerciseAttempted: state.experimented,
-        completed: false,
+          exerciseAttempted: state.experimented,
+          verified: false,
+          completed: false,
+          blocked: false,
         revisit: state.revisit,
         note: state.note,
         updatedAt: state.updatedAt,
       }])),
+      modules: {},
     }),
   };
 }

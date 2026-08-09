@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import type { BootstrapPayload, DiagnosticsPayload } from "../api";
+import type { GenerationDepth } from "@tourguide/core";
 import { api } from "../api";
 import { errorMessage, errorText, isGenerating, type GenerationInput } from "../tour";
 
@@ -32,6 +33,7 @@ export function GenerationPanel({
   const [ref, setRef] = useState(data.inventory.ref);
   const [priorities, setPriorities] = useState(data.preferences.priorities);
   const [model, setModel] = useState(data.defaultModel ?? "");
+  const [depth, setDepth] = useState<GenerationDepth>("standard");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -49,6 +51,7 @@ export function GenerationPanel({
         ref,
         goal: goal.trim() || DEFAULT_GOAL,
         priorities,
+        depth,
         ...(model.trim() ? { model: model.trim() } : {}),
       });
       onClose?.();
@@ -73,17 +76,26 @@ export function GenerationPanel({
       <label className="field focus-field">
         <span>Optional focus</span>
         <textarea
+          name="tour-focus"
           value={goal}
           onChange={(event) => setGoal(event.target.value)}
           placeholder="For example: show me how an API request reaches persistence."
         />
       </label>
+      <div className="depth-picker" aria-label="Generation depth">
+        {([
+          ["quick", "Quick", "Up to 2 modules / 7 Codex turns"],
+          ["standard", "Standard", "Up to 4 modules / 11 Codex turns"],
+          ["deep", "Deep", "Up to 8 modules / 19 Codex turns"],
+        ] as const).map(([id, label, detail]) => <button key={id} className={depth === id ? "active" : ""} onClick={() => setDepth(id)}><strong>{label}</strong><small>{detail}</small></button>)}
+      </div>
       <details className="advanced-setup">
         <summary>Advanced settings <small>{shortRef} · {model || "default model"}</small></summary>
         <div className="setup-row">
           <label className="field">
             <span>Git branch, tag, or commit</span>
             <input
+              name="tour-ref"
               list="tourguide-refs"
               value={ref}
               onChange={(event) => setRef(event.target.value)}
@@ -101,6 +113,7 @@ export function GenerationPanel({
           <label className="field">
             <span>Codex model</span>
             <input
+              name="codex-model"
               value={model}
               onChange={(event) => setModel(event.target.value)}
               placeholder="Use Codex default"
@@ -132,6 +145,13 @@ export function GenerationPanel({
         <CircleDot size={15} />
         <span><strong>Codex: {data.codex.status}</strong>{data.codex.message}</span>
       </div>
+      <div className="generation-consent">
+        <span><strong>Model</strong>{model || "Codex default"}</span>
+        <span><strong>Commit</strong>{ref === data.inventory.ref ? data.inventory.head.slice(0, 12) : ref}</span>
+        <span><strong>Indexed paths</strong>{data.inventory.trackedFileCount}</span>
+        <span><strong>Maximum turns</strong>{depth === "quick" ? 7 : depth === "deep" ? 19 : 11}</span>
+      </div>
+      <p className="generation-runtime-note">Generation may execute repository or generated runtime probes in a disposable worktree with an isolated HOME and loopback-only declared networking. Only use this with repositories you trust.</p>
       {data.job?.errorCode && (
         <div className="diagnostic-notice">
           <p className="inline-error">Last generation: {data.job.message}</p>
@@ -199,6 +219,7 @@ export function GenerationBanner({ data, onCancel }: { data: BootstrapPayload; o
       <RefreshCw size={15} className="spin" />
       <span><strong>{job.phase}</strong> {job.message}</span>
       {totalModules > 0 && <span>{completedModules}/{totalModules} modules ready</span>}
+      <span>{job.usage.inputTokens + job.usage.outputTokens} tokens · max {job.maximumCodexTurns} turns</span>
       <button onClick={onCancel}><Square size={11} /> Cancel</button>
     </div>
   );
@@ -219,7 +240,7 @@ export function LoadingScreen() {
   return <main className="loading"><Sparkles /> Inspecting the repository…</main>;
 }
 
-export function GenerationScreen({ data, onDiagnostics }: { data: BootstrapPayload; onDiagnostics(): void }) {
+export function GenerationScreen({ data, onDiagnostics, onExplore }: { data: BootstrapPayload; onDiagnostics(): void; onExplore(): void }) {
   return (
     <main className="generation-screen">
       <Sparkles size={34} />
@@ -228,6 +249,7 @@ export function GenerationScreen({ data, onDiagnostics }: { data: BootstrapPaylo
       <div className="generation-log">
         {data.events.slice(-8).map((event) => <span key={event.id}>{event.message}</span>)}
       </div>
+      <button onClick={onExplore}><Code2 size={14} /> Explore indexed codebase</button>
       {isGenerating(data) && <button onClick={() => api.cancelGeneration()}>Cancel generation</button>}
       {data.job?.errorCode && <button onClick={onDiagnostics}><Bug size={14} /> View diagnostics</button>}
     </main>

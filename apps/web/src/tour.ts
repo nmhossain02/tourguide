@@ -1,4 +1,5 @@
 import type { Page, TourSnapshot } from "@tourguide/core";
+import type { GenerationDepth } from "@tourguide/core";
 
 import type { BootstrapPayload } from "./api";
 
@@ -7,6 +8,7 @@ export interface GenerationInput {
   goal: string;
   priorities: string[];
   model?: string;
+  depth: GenerationDepth;
 }
 
 const EDITOR_LANGUAGES: Record<string, string> = {

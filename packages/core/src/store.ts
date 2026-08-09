@@ -3,6 +3,9 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { parsePreferences, parseProgress, parseSnapshot } from "./migration.js";
+import { buildRepositoryKnowledge } from "./knowledge.js";
+import { buildLivingDocumentation } from "./documentation.js";
+import { inspectRepositoryAt } from "./git.js";
 import {
   ExerciseSessionSchema,
   DiagnosticReportSchema,
@@ -11,6 +14,11 @@ import {
   PreferencesSchema,
   ProgressSchema,
   TourSnapshotSchema,
+  RepositoryKnowledgeSnapshotSchema,
+  LivingDocumentationSnapshotSchema,
+  DocumentationInferenceArtifactSchema,
+  RuntimeProviderArtifactSchema,
+  TourImpactAssessmentArtifactSchema,
   type ExerciseSession,
   type DiagnosticReport,
   type GenerationEvent,
@@ -18,6 +26,11 @@ import {
   type Preferences,
   type Progress,
   type TourSnapshot,
+  type RepositoryKnowledgeSnapshot,
+  type LivingDocumentationSnapshot,
+  type DocumentationInferenceArtifact,
+  type RuntimeProviderArtifact,
+  type TourImpactAssessmentArtifact,
 } from "./schema.js";
 
 async function readJson(path: string): Promise<unknown | undefined> {
@@ -48,6 +61,11 @@ export class TourStore {
       mkdir(join(this.base, "cache", "drafts"), { recursive: true }),
       mkdir(join(this.base, "cache", "snapshots"), { recursive: true }),
       mkdir(join(this.base, "cache", "jobs"), { recursive: true }),
+      mkdir(join(this.base, "cache", "knowledge"), { recursive: true }),
+      mkdir(join(this.base, "cache", "documentation"), { recursive: true }),
+      mkdir(join(this.base, "cache", "intelligence", "documentation"), { recursive: true }),
+      mkdir(join(this.base, "cache", "intelligence", "runtime"), { recursive: true }),
+      mkdir(join(this.base, "cache", "intelligence", "tour-impact"), { recursive: true }),
       mkdir(join(this.base, "cache", "migrations"), { recursive: true }),
       mkdir(join(this.base, "diagnostics"), { recursive: true }),
       mkdir(join(this.base, "state", "exercises"), { recursive: true }),
@@ -72,9 +90,42 @@ export class TourStore {
   private async parsedSnapshot(path: string): Promise<TourSnapshot | undefined> {
     const value = await readJson(path);
     if (value === undefined) return undefined;
-    const parsed = parseSnapshot(value);
+    let parsed = parseSnapshot(value);
     if (parsed.migrated) {
-      await atomicJson(join(this.base, "cache", "migrations", `snapshot-v1-${Date.now()}.json`), value);
+      await atomicJson(join(this.base, "cache", "migrations", `snapshot-legacy-${Date.now()}.json`), value);
+      try {
+        const inventory = await inspectRepositoryAt(this.root, parsed.snapshot.anchor.commit);
+        const knowledge = await buildRepositoryKnowledge(inventory);
+        const documentation = buildLivingDocumentation(knowledge);
+        const codeByPath = new Map(knowledge.catalogs.codeDocs.filter((item) => item.kind === "file" || item.kind === "document" || item.kind === "config" || item.kind === "test" || item.kind === "delivery" || item.kind === "package").map((item) => [item.path, item]));
+        const pages = parsed.snapshot.pages.map((page) => ({
+          ...page,
+          knowledgeRefs: [...new Map([
+            ...page.knowledgeRefs,
+            ...page.evidence.flatMap((evidence) => {
+              const item = evidence.path ? codeByPath.get(evidence.path) : undefined;
+              return item ? [{ catalog: item.catalog, itemId: item.id, contentHash: item.contentHash }] : [];
+            }),
+          ].map((reference) => [reference.itemId, reference])).values()],
+        }));
+        const modules = parsed.snapshot.modules.map((module) => ({
+          ...module,
+          knowledgeRefs: [...new Map(pages.filter((page) => page.moduleId === module.id).flatMap((page) => page.knowledgeRefs).map((reference) => [reference.itemId, reference])).values()],
+        }));
+        const snapshot = TourSnapshotSchema.parse({
+          ...parsed.snapshot,
+          knowledgeSnapshotId: knowledge.id,
+          documentationSnapshotId: documentation.id,
+          knowledgeRefs: [...new Map(modules.flatMap((module) => module.knowledgeRefs).map((reference) => [reference.itemId, reference])).values()],
+          modules,
+          pages,
+        });
+        await this.saveKnowledge(knowledge);
+        await this.saveDocumentation(documentation);
+        parsed = { snapshot, migrated: true };
+      } catch {
+        // Preserve the migrated tour even when its historical commit cannot be indexed locally.
+      }
       await atomicJson(path, parsed.snapshot);
       await atomicJson(join(this.base, "cache", "snapshots", `${parsed.snapshot.id}.json`), parsed.snapshot);
     }
@@ -87,6 +138,56 @@ export class TourStore {
 
   async snapshot(id: string): Promise<TourSnapshot | undefined> {
     return this.parsedSnapshot(join(this.base, "cache", "snapshots", `${id}.json`));
+  }
+
+  async knowledge(id: string): Promise<RepositoryKnowledgeSnapshot | undefined> {
+    const value = await readJson(join(this.base, "cache", "knowledge", `${encodeURIComponent(id)}.json`));
+    return value === undefined ? undefined : RepositoryKnowledgeSnapshotSchema.parse(value);
+  }
+
+  async saveKnowledge(value: RepositoryKnowledgeSnapshot): Promise<void> {
+    const parsed = RepositoryKnowledgeSnapshotSchema.parse(value);
+    await atomicJson(join(this.base, "cache", "knowledge", `${encodeURIComponent(parsed.id)}.json`), parsed);
+  }
+
+  async documentation(id: string): Promise<LivingDocumentationSnapshot | undefined> {
+    const value = await readJson(join(this.base, "cache", "documentation", `${encodeURIComponent(id)}.json`));
+    return value === undefined ? undefined : LivingDocumentationSnapshotSchema.parse(value);
+  }
+
+  async saveDocumentation(value: LivingDocumentationSnapshot): Promise<void> {
+    const parsed = LivingDocumentationSnapshotSchema.parse(value);
+    await atomicJson(join(this.base, "cache", "documentation", `${encodeURIComponent(parsed.id)}.json`), parsed);
+  }
+
+  async documentationInferenceArtifact(cacheKey: string): Promise<DocumentationInferenceArtifact | undefined> {
+    const value = await readJson(join(this.base, "cache", "intelligence", "documentation", `${encodeURIComponent(cacheKey)}.json`));
+    return value === undefined ? undefined : DocumentationInferenceArtifactSchema.parse(value);
+  }
+
+  async saveDocumentationInferenceArtifact(value: DocumentationInferenceArtifact): Promise<void> {
+    const parsed = DocumentationInferenceArtifactSchema.parse(value);
+    await atomicJson(join(this.base, "cache", "intelligence", "documentation", `${encodeURIComponent(parsed.cacheKey)}.json`), parsed);
+  }
+
+  async runtimeProviderArtifact(cacheKey: string): Promise<RuntimeProviderArtifact | undefined> {
+    const value = await readJson(join(this.base, "cache", "intelligence", "runtime", `${encodeURIComponent(cacheKey)}.json`));
+    return value === undefined ? undefined : RuntimeProviderArtifactSchema.parse(value);
+  }
+
+  async saveRuntimeProviderArtifact(value: RuntimeProviderArtifact): Promise<void> {
+    const parsed = RuntimeProviderArtifactSchema.parse(value);
+    await atomicJson(join(this.base, "cache", "intelligence", "runtime", `${encodeURIComponent(parsed.cacheKey)}.json`), parsed);
+  }
+
+  async tourImpactArtifact(cacheKey: string): Promise<TourImpactAssessmentArtifact | undefined> {
+    const value = await readJson(join(this.base, "cache", "intelligence", "tour-impact", `${encodeURIComponent(cacheKey)}.json`));
+    return value === undefined ? undefined : TourImpactAssessmentArtifactSchema.parse(value);
+  }
+
+  async saveTourImpactArtifact(value: TourImpactAssessmentArtifact): Promise<void> {
+    const parsed = TourImpactAssessmentArtifactSchema.parse(value);
+    await atomicJson(join(this.base, "cache", "intelligence", "tour-impact", `${encodeURIComponent(parsed.cacheKey)}.json`), parsed);
   }
 
   async saveDraft(snapshot: TourSnapshot): Promise<void> {

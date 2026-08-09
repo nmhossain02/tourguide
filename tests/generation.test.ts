@@ -198,13 +198,14 @@ console.log(JSON.stringify({ type: "turn.completed", usage: { input_tokens: 10, 
 }
 
 describe("Codex generation orchestration", () => {
-  it("plans once, resumes for a module, and publishes a validated v2 tour", async () => {
+  it("plans once, resumes for a module, and publishes a validated v3 tour", async () => {
     const root = await repository();
     const executable = await fakeCodex(root);
     const store = new TourStore(root);
     const generator = new TourGenerator(root, store, new CodexExecRunner(executable));
     const started = await generator.start({ goal: "Understand the fixture.", ref: "HEAD" });
     expect(started.status).toBe("queued");
+    expect(started).toMatchObject({ depth: "standard", maximumCodexTurns: 11 });
 
     let job = await store.generationJob();
     for (let attempt = 0; attempt < 100 && job?.status !== "complete" && !job?.errorCode; attempt += 1) {
@@ -214,11 +215,18 @@ describe("Codex generation orchestration", () => {
     expect(job?.message).toBe("Tour generation is complete.");
     expect(job?.completedModuleIds).toEqual(["foundations"]);
     expect(job?.usage.outputTokens).toBe(10);
+    expect(job?.indexedSourceBytes).toBeGreaterThan(0);
+    expect(job?.filteredSourceBytes).toBeGreaterThan(0);
     const tour = await store.current();
-    expect(tour?.schemaVersion).toBe(2);
+    expect(tour?.schemaVersion).toBe(3);
     expect(tour?.status).toBe("published");
+    expect(tour?.documentationSnapshotId).toMatch(/^documentation:/);
+    const documentation = await store.documentation(tour!.documentationSnapshotId!);
+    expect(documentation?.sourceKnowledgeSnapshotId).toBe(tour?.knowledgeSnapshotId);
+    expect(documentation?.subjects.length).toBeGreaterThan(0);
     expect(tour?.modules[0]?.pageIds).toHaveLength(6);
     expect(tour?.pages.some((page) => page.kind === "exercise")).toBe(true);
+    expect(tour?.labEnvironments).toEqual([expect.objectContaining({ moduleId: "foundations", adapterIds: expect.arrayContaining(["source", "command"]), readiness: "ready" })]);
     const command = tour?.pages[0]?.interactions.find((interaction) => interaction.type === "command");
     expect(command?.type === "command" ? command.recipe.env : undefined).toEqual({ MODE: "test" });
     const data = tour?.pages[0]?.interactions.find((interaction) => interaction.type === "data");

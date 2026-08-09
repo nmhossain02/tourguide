@@ -14,6 +14,7 @@ import {
   normalizeCodexOutput,
 } from "../packages/server/src/codex-exec.js";
 import { captureDiagnostic } from "../packages/server/src/diagnostics.js";
+import { normalizeVerificationChecks } from "../packages/server/src/generation.js";
 
 const exec = promisify(execFile);
 const temporary: string[] = [];
@@ -115,8 +116,10 @@ describe("Codex structured output schemas", () => {
     const schemas = [codexOutputSchema(CurriculumPlanSchema), codexOutputSchema(GeneratedModuleSchema)];
     const visit = (value: unknown) => {
       if (Array.isArray(value)) return value.forEach(visit);
-      if (!value || typeof value !== "object") return;
+      expect(value).toBeTruthy();
+      expect(typeof value).toBe("object");
       const record = value as Record<string, unknown>;
+      expect(record.type || record.$ref || record.anyOf).toBeTruthy();
       expect(record).not.toHaveProperty("default");
       expect(record).not.toHaveProperty("propertyNames");
       expect(record).not.toHaveProperty("oneOf");
@@ -138,5 +141,20 @@ describe("Codex structured output schemas", () => {
 
   it("removes nullable placeholders before Zod applies optional defaults", () => {
     expect(normalizeCodexOutput({ reason: null, nested: { value: null, keep: true } })).toEqual({ nested: { keep: true } });
+  });
+
+  it("decodes strict LLM verification values into runtime checks", () => {
+    expect(normalizeVerificationChecks([
+      { type: "json-subset", expected: "{\"ok\":true}" },
+      { type: "http", status: 200, bodySubset: "{\"orders\":[1]}" },
+      { type: "database-rows", expected: "[{\"id\":1}]" },
+    ])).toEqual([
+      { type: "json-subset", expected: { ok: true } },
+      { type: "http", status: 200, bodySubset: { orders: [1] } },
+      { type: "database-rows", expected: [{ id: 1 }] },
+    ]);
+    expect(() => normalizeVerificationChecks([
+      { type: "json-subset", expected: "not-json" },
+    ])).toThrow("json-subset verification contains invalid JSON");
   });
 });

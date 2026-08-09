@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleDot,
   ExternalLink,
+  FileCode2,
   GitBranch,
   Menu,
   RotateCcw,
@@ -23,6 +24,7 @@ import type {
   Progress,
   TourSnapshot,
   Track,
+  ViewerTarget,
 } from "@tourguide/core";
 import type { BootstrapPayload } from "../api";
 import { ExerciseView } from "./ExerciseView";
@@ -41,6 +43,7 @@ interface TourContentProps {
   onSelectPage(id: string): void;
   onSelectInteraction(index: number): void;
   onOpenEvidence(evidence: EvidenceRef): void;
+  onOpenKnowledge(target: ViewerTarget): void;
   onUpdateProgress(id: string, patch: Partial<Progress["pages"][string]>): void;
 }
 
@@ -51,6 +54,7 @@ export function TopBar({
   onToggleRail,
   onDiagnostics,
   onNewTour,
+  onExplore,
 }: {
   projectName: string;
   completedCount: number;
@@ -58,6 +62,7 @@ export function TopBar({
   onToggleRail(): void;
   onDiagnostics(): void;
   onNewTour(): void;
+  onExplore(): void;
 }) {
   return (
     <header className="topbar">
@@ -68,6 +73,7 @@ export function TopBar({
       </div>
       <div className="top-status">
         <span>{completedCount}/{pageCount} completed</span>
+        <button className="prominent" onClick={onExplore}><FileCode2 size={15} /> Explore codebase</button>
         <button onClick={onDiagnostics}><Bug size={15} /> Diagnostics</button>
         <button onClick={onNewTour}><Sparkles size={15} /> New tour</button>
       </div>
@@ -158,6 +164,7 @@ function LessonContent({
   pageIndex,
   onSelectPage,
   onOpenEvidence,
+  onOpenKnowledge,
   onUpdateProgress,
 }: Omit<TourContentProps, "tour" | "interactionIndex" | "railOpen" | "onSelectInteraction">) {
   const pageProgress = data.progress.pages[page.id];
@@ -203,9 +210,11 @@ function LessonContent({
         <section className="references">
           <h3>Go deeper</h3>
           {page.references.map((reference) => (
-            <a key={reference.url} href={reference.url} target="_blank" rel="noreferrer">
-              {reference.title}<ExternalLink size={13} />
-            </a>
+            reference.type === "external"
+              ? <a key={reference.url} href={reference.url} target="_blank" rel="noreferrer">{reference.title}<ExternalLink size={13} /></a>
+              : reference.type === "source"
+                ? <button key={reference.title} onClick={() => onOpenKnowledge(reference.target)}>{reference.title}<FileCode2 size={13} /></button>
+                : <button key={reference.path} onClick={() => onOpenEvidence({ id: `reference-${reference.path}`, kind: "documentation", label: reference.title, claim: "Repository-owned documentation reference.", path: reference.path, contentHash: reference.contentHash, validated: Boolean(reference.contentHash) })}>{reference.title}<BookOpen size={13} /></button>
           ))}
         </section>
       )}
@@ -243,7 +252,8 @@ function Workspace({
   interactionIndex,
   onSelectInteraction,
   onUpdateProgress,
-}: Pick<TourContentProps, "data" | "page" | "interactionIndex" | "onSelectInteraction" | "onUpdateProgress">) {
+  onOpenKnowledge,
+}: Pick<TourContentProps, "data" | "page" | "interactionIndex" | "onSelectInteraction" | "onUpdateProgress" | "onOpenKnowledge">) {
   const selectedInteraction = page.interactions[interactionIndex] ?? page.interactions[0];
 
   return (
@@ -269,6 +279,7 @@ function Workspace({
           key={page.id}
           page={page}
           onAttempt={() => onUpdateProgress(page.id, { exerciseAttempted: true })}
+          onVerified={() => onUpdateProgress(page.id, { verified: true })}
         />
       ) : selectedInteraction ? (
         <InteractionView
@@ -276,6 +287,7 @@ function Workspace({
           interaction={selectedInteraction}
           inventory={data.inventory}
           onExperiment={() => onUpdateProgress(page.id, { demonstrated: true })}
+          onOpenKnowledge={onOpenKnowledge}
         />
       ) : null}
     </section>
@@ -305,6 +317,7 @@ export function TourContent(props: TourContentProps) {
               pageIndex={props.pageIndex}
               onSelectPage={props.onSelectPage}
               onOpenEvidence={props.onOpenEvidence}
+              onOpenKnowledge={props.onOpenKnowledge}
               onUpdateProgress={props.onUpdateProgress}
             />
           </Panel>
@@ -316,6 +329,7 @@ export function TourContent(props: TourContentProps) {
               interactionIndex={props.interactionIndex}
               onSelectInteraction={props.onSelectInteraction}
               onUpdateProgress={props.onUpdateProgress}
+              onOpenKnowledge={props.onOpenKnowledge}
             />
           </Panel>
         </Group>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { EvidenceRef, Progress } from "@tourguide/core";
+import type { EvidenceRef, Progress, ViewerTarget } from "@tourguide/core";
 import { api, type BootstrapPayload } from "./api";
 import {
   DiagnosticsModal,
@@ -17,6 +17,7 @@ import {
   TourContent,
 } from "./components/TourView";
 import { errorText, getOrderedPages, isGenerating, type GenerationInput } from "./tour";
+import { KnowledgeExplorer } from "./components/KnowledgeExplorer";
 
 const POLL_INTERVAL_MS = 1_000;
 const MAX_VISIBLE_EVENTS = 200;
@@ -30,6 +31,7 @@ export function App() {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [interactionIndex, setInteractionIndex] = useState(0);
   const [error, setError] = useState<string>();
+  const [viewerTarget, setViewerTarget] = useState<ViewerTarget | null>();
   const lastEventId = useRef(0);
 
   useEffect(() => {
@@ -94,16 +96,26 @@ export function App() {
       viewed: false,
       demonstrated: false,
       exerciseAttempted: false,
+      verified: false,
       completed: false,
+      blocked: false,
+      stale: false,
       revisit: false,
       updatedAt: now,
     };
+    const pages = {
+      ...data.progress.pages,
+      [id]: { ...currentPageProgress, ...patch, updatedAt: now },
+    };
+    const pageModule = data.tour?.modules.find((candidate) => candidate.pageIds.includes(id));
+    const moduleComplete = pageModule?.pageIds.every((pageId) => pages[pageId]?.completed) ?? false;
     const progress: Progress = {
-      schemaVersion: 2,
-      pages: {
-        ...data.progress.pages,
-        [id]: { ...currentPageProgress, ...patch, updatedAt: now },
-      },
+      schemaVersion: 3,
+      pages,
+      modules: pageModule ? {
+        ...data.progress.modules,
+        [pageModule.id]: { completed: moduleComplete, updatedAt: now },
+      } : data.progress.modules,
     };
 
     setData({ ...data, progress });
@@ -157,12 +169,16 @@ export function App() {
   const diagnosticsModal = diagnosticsOpen
     ? <DiagnosticsModal onClose={() => setDiagnosticsOpen(false)} />
     : null;
+  const knowledgeExplorer = viewerTarget !== undefined
+    ? <KnowledgeExplorer {...(viewerTarget ? { initialTarget: viewerTarget } : {})} onClose={() => setViewerTarget(undefined)} />
+    : null;
 
   if (error) {
     return (
       <>
         <FatalScreen error={error} onDiagnostics={() => setDiagnosticsOpen(true)} />
         {diagnosticsModal}
+        {knowledgeExplorer}
       </>
     );
   }
@@ -173,6 +189,7 @@ export function App() {
     return (
       <>
         <main className="setup-screen">
+          <button className="explore-codebase" onClick={() => setViewerTarget(null)}>Explore codebase</button>
           <GenerationPanel
             data={data}
             onStart={startGeneration}
@@ -180,6 +197,7 @@ export function App() {
           />
         </main>
         {diagnosticsModal}
+        {knowledgeExplorer}
       </>
     );
   }
@@ -187,8 +205,9 @@ export function App() {
   if (!tour || !page || !module || !track) {
     return (
       <>
-        <GenerationScreen data={data} onDiagnostics={() => setDiagnosticsOpen(true)} />
+        <GenerationScreen data={data} onDiagnostics={() => setDiagnosticsOpen(true)} onExplore={() => setViewerTarget(null)} />
         {diagnosticsModal}
+        {knowledgeExplorer}
       </>
     );
   }
@@ -205,6 +224,7 @@ export function App() {
         onToggleRail={() => setRailOpen((open) => !open)}
         onDiagnostics={() => setDiagnosticsOpen(true)}
         onNewTour={() => setGenerateOpen(true)}
+        onExplore={() => setViewerTarget(null)}
       />
       {generating && (
         <GenerationBanner data={data} onCancel={() => { void api.cancelGeneration(); }} />
@@ -223,6 +243,7 @@ export function App() {
         onSelectPage={selectPage}
         onSelectInteraction={setInteractionIndex}
         onOpenEvidence={setEvidence}
+        onOpenKnowledge={(target) => setViewerTarget(target)}
         onUpdateProgress={updateProgress}
       />
       {generateOpen && (
@@ -238,6 +259,7 @@ export function App() {
         </div>
       )}
       {diagnosticsModal}
+      {knowledgeExplorer}
       {evidence && (
         <>
           <div className="drawer-backdrop" onClick={() => setEvidence(undefined)} />

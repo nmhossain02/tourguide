@@ -1,1 +1,1 @@
-{"name":"polyglot-shop","private":true,"scripts":{"dev":"vite","test":"vitest run"}}
+{"name":"polyglot-shop","private":true,"type":"module","scripts":{"dev":"node backend/server.mjs","seed":"node backend/seed.mjs","test":"node --test tests/*.node-test.mjs"}}

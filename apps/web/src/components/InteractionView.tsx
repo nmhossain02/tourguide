@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { Terminal } from "@xterm/xterm";
 import { Background, Controls, ReactFlow, type Edge, type Node } from "@xyflow/react";
-import { CircleDot, ExternalLink, FileCode2, Play, TerminalSquare } from "lucide-react";
+import { CircleDot, ExternalLink, FileCode2, Library, Play, TerminalSquare } from "lucide-react";
 
-import type { Interaction, ProjectInventory } from "@tourguide/core";
+import type { Interaction, KnowledgeItem, LabInvocationResult, ProjectInventory, ViewerTarget } from "@tourguide/core";
 import { api } from "../api";
 import { editorLanguageForPath } from "../tour";
 
@@ -12,6 +12,59 @@ type SourceInteraction = Extract<Interaction, { type: "source" }>;
 type CommandInteraction = Extract<Interaction, { type: "command" }>;
 type DataInteraction = Extract<Interaction, { type: "data" }>;
 type TopologyInteraction = Extract<Interaction, { type: "topology" }>;
+type KnowledgeInteraction = Extract<Interaction, { type: "component" | "http" | "database" | "function" }>;
+
+function KnowledgeTargetView({ pageId, interaction, onOpenKnowledge }: { pageId: string; interaction: KnowledgeInteraction; onOpenKnowledge(target: ViewerTarget): void }) {
+  const [item, setItem] = useState<KnowledgeItem>();
+  const [error, setError] = useState<string>();
+  const [input, setInput] = useState(() => JSON.stringify(interaction.type === "function"
+    ? { args: [] }
+    : interaction.type === "database"
+      ? { databasePath: "app.db", query: "SELECT name FROM sqlite_master WHERE type = 'table'" }
+      : interaction.type === "component"
+        ? { args: {} }
+        : {}, null, 2));
+  const [running, setRunning] = useState(false);
+  const [invocation, setInvocation] = useState<LabInvocationResult>();
+  useEffect(() => {
+    setItem(undefined);
+    setError(undefined);
+    api.knowledgeItem(interaction.target.catalog, interaction.target.itemId)
+      .then((result) => setItem(result.item))
+      .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+  }, [interaction.target.catalog, interaction.target.itemId]);
+  const run = async () => {
+    setRunning(true);
+    setError(undefined);
+    try {
+      const inputs = JSON.parse(input) as Record<string, unknown>;
+      setInvocation((await api.invokeLabInteraction(pageId, interaction.target.itemId, inputs)).invocation);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setRunning(false);
+    }
+  };
+  return (
+    <div className="workspace-card target-workspace">
+      <div className="workspace-toolbar">
+        <span><Library size={15} /> {interaction.type} viewer</span>
+        <button className="primary small" onClick={() => onOpenKnowledge(interaction.target)}>Open full catalog</button>
+      </div>
+      <div className="target-summary">
+        {error ? <p className="inline-error">{error}</p> : !item ? <p>Loading indexed knowledge...</p> : <>
+          <span className="eyebrow">{item.catalog} / {item.kind}</span>
+          <h2>{item.title}</h2>
+          <p>{item.summary}</p>
+          <dl><dt>Source</dt><dd>{item.path ?? "No direct source path"}</dd><dt>Readiness</dt><dd>{item.readiness}</dd><dt>Provenance</dt><dd>{item.adapterId}</dd></dl>
+          <label className="interaction-input"><span>Inputs (JSON)</span><textarea name={`interaction-input-${interaction.target.itemId}`} value={input} onChange={(event) => setInput(event.target.value)} /></label>
+          <div className="target-actions"><button className="primary" onClick={run} disabled={running}><Play size={14} /> {running ? "Running..." : "Run interaction"}</button><button onClick={() => onOpenKnowledge(interaction.target)}>Explore details and relationships</button></div>
+          {invocation && <section className="invocation-output"><span>{invocation.provenance} via {invocation.adapterId}</span>{typeof (invocation.value as { url?: unknown })?.url === "string" && interaction.type === "component" ? <iframe title={item.title} src={(invocation.value as { url: string }).url} /> : <pre>{JSON.stringify(invocation.value, null, 2)}</pre>}</section>}
+        </>}
+      </div>
+    </div>
+  );
+}
 
 function SourceView({
   interaction,
@@ -252,11 +305,13 @@ export function InteractionView({
   interaction,
   inventory,
   onExperiment,
+  onOpenKnowledge,
 }: {
   pageId: string;
   interaction: Interaction;
   inventory: ProjectInventory;
   onExperiment(): void;
+  onOpenKnowledge(target: ViewerTarget): void;
 }) {
   switch (interaction.type) {
     case "source":
@@ -281,5 +336,10 @@ export function InteractionView({
           />
         </div>
       );
+    case "component":
+    case "http":
+    case "database":
+    case "function":
+      return <KnowledgeTargetView pageId={pageId} interaction={interaction} onOpenKnowledge={onOpenKnowledge} />;
   }
 }
