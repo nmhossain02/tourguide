@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { mkdir, rm } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { lstat, mkdir, readFile, readlink, rm } from "node:fs/promises";
 import { resolve, relative, isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 
@@ -93,17 +93,42 @@ function materialize(recipe: RunRecipe, values: Record<string, string>): RunReci
   return { ...recipe, args: recipe.args.map(replace), env: Object.fromEntries(Object.entries(recipe.env).map(([key, value]) => [key, replace(value)])) };
 }
 
-async function workspaceChanges(workspace: string, recipe: RunRecipe) {
+async function visibleWorkspacePaths(workspace: string): Promise<string[]> {
+  const [{ stdout: changedOutput }, { stdout: untrackedOutput }] = await Promise.all([
+    execFileAsync("git", ["-C", workspace, "diff", "HEAD", "--name-only", "-z"], { encoding: "utf8" }),
+    execFileAsync("git", ["-C", workspace, "ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }),
+  ]);
+  return [...new Set([...changedOutput.split("\0"), ...untrackedOutput.split("\0")]
+    .filter(Boolean)
+    .filter((path) => !path.startsWith(".tourguide-home/")))];
+}
+
+async function workspaceState(workspace: string): Promise<Map<string, string>> {
+  const state = new Map<string, string>();
+  await Promise.all((await visibleWorkspacePaths(workspace)).map(async (path) => {
+    const target = containedPath(workspace, path);
+    try {
+      const metadata = await lstat(target);
+      const value = metadata.isSymbolicLink()
+        ? `symlink:${await readlink(target)}`
+        : metadata.isFile()
+          ? await readFile(target)
+          : `mode:${metadata.mode}:size:${metadata.size}`;
+      const hash = createHash("sha256").update(value).digest("hex");
+      state.set(path, hash);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      state.set(path, "missing");
+    }
+  }));
+  return state;
+}
+
+async function workspaceChanges(workspace: string, recipe: RunRecipe, baseline: Map<string, string>) {
   const { stdout: trackedPatch } = await execFileAsync("git", ["-C", workspace, "diff", "--binary"], {
     encoding: "utf8",
     maxBuffer: 8 * 1024 * 1024,
   });
-  const { stdout: changedOutput } = await execFileAsync(
-    "git",
-    ["-C", workspace, "status", "--porcelain=v1", "-z"],
-    { encoding: "utf8" },
-  );
-  const changedFiles = changedOutput.split("\0").filter(Boolean).map((entry) => entry.slice(3));
   const { stdout: untrackedOutput } = await execFileAsync(
     "git",
     ["-C", workspace, "ls-files", "--others", "--exclude-standard", "-z"],
@@ -129,14 +154,14 @@ async function workspaceChanges(workspace: string, recipe: RunRecipe) {
   const declared = (path: string) => recipe.capabilities.writes.some(
     (pattern) => pattern === path || (pattern.endsWith("/**") && path.startsWith(pattern.slice(0, -3))),
   );
-  const visibleChanges = [...new Set([
-    ...changedFiles.filter((path) => !path.startsWith(".tourguide-home/")),
-    ...untracked,
-  ])];
+  const current = await workspaceState(workspace);
+  const visibleChanges = [...current.keys()];
+  const recipeChanges = [...new Set([...baseline.keys(), ...current.keys()])]
+    .filter((path) => baseline.get(path) !== current.get(path));
   return {
     patch: patches.join(""),
     changedFiles: visibleChanges,
-    undeclaredWrites: visibleChanges.filter((path) => !declared(path)),
+    undeclaredWrites: recipeChanges.filter((path) => !declared(path)),
   };
 }
 
@@ -153,8 +178,9 @@ export async function runRecipeInWorkspace(
   }
   const isolatedHome = join(workspace, ".tourguide-home");
   await mkdir(isolatedHome, { recursive: true });
+  const baseline = await workspaceState(workspace);
   const result = await execute(workspace, recipe, isolatedHome);
-  const changes = await workspaceChanges(workspace, recipe);
+  const changes = await workspaceChanges(workspace, recipe, baseline);
   return {
     ...result,
     isolated: true,

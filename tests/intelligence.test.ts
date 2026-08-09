@@ -85,7 +85,7 @@ class FakeIntelligenceRunner {
           capabilities: profile.capabilities,
           files: [{
             path: "server.mjs",
-            content: "import{createServer}from'node:http';createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html'});res.end(req.url==='/health'?'ok':'<button>preview</button>')}).listen(Number(process.env.PORT),'127.0.0.1');\n",
+            content: "import{createServer}from'node:http';createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html'});const subject=new URL(req.url,'http://x').searchParams.get('subject')??'';res.end(req.url==='/health'?'ok':`<button data-tourguide-subject=\"${subject}\">${subject}</button>`)}).listen(Number(process.env.PORT),'127.0.0.1');\n",
           }],
           preparationRecipes: [],
           services: [{
@@ -128,12 +128,12 @@ class FakeIntelligenceRunner {
               id: "generated-compute-invoke",
               title: "Invoke TypeScript surface",
               command: process.execPath,
-              args: ["-e", "console.log(JSON.stringify({ok:true}))"],
+              args: ["-e", "console.log(JSON.stringify({ok:true,subject:process.argv[1]}))", "{{subject_symbol}}"],
               cwdMode: "repository",
               lifecycle: "oneshot",
               timeoutMs: 5_000,
               env: [],
-              inputs: [],
+              inputs: [{ id: "subject_symbol", label: "Subject symbol", type: "text", default: "" }],
               capabilities: { writes: [], network: "none", secrets: [], containers: false, externalSystems: [] },
             },
             result: "json",
@@ -253,6 +253,54 @@ describe("intelligent Codex escalation and artifact reuse", () => {
     expect(refreshed.documentation.runtimeProfiles.find((profile) => profile.id === "frontend:main")?.probeStatus).toBe("pass");
   });
 
+  it("rejects a successful component response that does not render the requested subject", async () => {
+    const { root, inventory } = await repository();
+    const knowledge = await buildRepositoryKnowledge(inventory);
+    const documentation = (await import("../packages/core/src/documentation.js")).buildLivingDocumentation(knowledge);
+    documentation.runtimeProfiles = documentation.runtimeProfiles.filter((profile) => profile.domain === "component-library");
+    const runner = {
+      async run() {
+        const profile = documentation.runtimeProfiles[0]!;
+        return {
+          value: RuntimeSynthesisBatchSchema.parse({ providers: [{
+            profileId: profile.id,
+            title: "Static component response",
+            capabilities: profile.capabilities,
+            files: [{
+              path: "server.mjs",
+              content: "import{createServer}from'node:http';createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html'});res.end(req.url==='/health'?'ok':'<button>same preview</button>')}).listen(Number(process.env.PORT),'127.0.0.1');\n",
+            }],
+            preparationRecipes: [],
+            services: [{
+              id: "static-preview",
+              title: "Static preview",
+              recipe: {
+                id: "static-preview", title: "Static preview", command: process.execPath, args: ["server.mjs"], cwdMode: "provider",
+                lifecycle: "service", timeoutMs: 30_000, env: [], inputs: [],
+                capabilities: { writes: [], network: "loopback", secrets: [], containers: false, externalSystems: [] },
+              },
+              portEnv: "PORT",
+              healthUrl: "http://127.0.0.1:{{port}}/health",
+              healthTimeoutMs: 5_000,
+            }],
+            invocations: [{
+              capability: "ui.render", kind: "service-url", serviceId: "static-preview",
+              pathTemplate: "/preview?subject={{subject_symbol}}", result: "url",
+            }],
+          }] }),
+          threadId: "00000000-0000-4000-8000-000000000001",
+          usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 1 },
+          messages: [],
+        };
+      },
+    };
+    const store = new TourStore(root);
+    await store.initialize();
+    const result = await new IntelligenceCoordinator(root, store, runner as never).resolveRuntimeProviders(documentation, inventory);
+    expect(result.artifacts).toEqual([]);
+    expect(result.documentation.runtimeProfiles[0]?.probeStatus).not.toBe("pass");
+  });
+
   it("escalates after a deterministic provider fails its executable probe", async () => {
     const { root } = await repository();
     await writeFile(join(root, "schema.sql"), "CREATE TABLE notes (id INTEGER PRIMARY KEY);\nTHIS IS NOT SQLITE;\n");
@@ -273,8 +321,8 @@ describe("intelligent Codex escalation and artifact reuse", () => {
               capability: "data.query", kind: "command", result: "json",
               recipe: {
                 id: "generated-data", title: "Generated data", command: process.execPath,
-                args: ["-e", "console.log(JSON.stringify({ok:true}))"], cwdMode: "repository", lifecycle: "oneshot", timeoutMs: 5_000,
-                env: [], inputs: [], capabilities: { writes: [], network: "none", secrets: [], containers: false, externalSystems: [] },
+                args: ["-e", "console.log(JSON.stringify({ok:true,subject:process.argv[1]}))", "{{subject_symbol}}"], cwdMode: "repository", lifecycle: "oneshot", timeoutMs: 5_000,
+                env: [], inputs: [{ id: "subject_symbol", label: "Subject symbol", type: "text", default: "" }], capabilities: { writes: [], network: "none", secrets: [], containers: false, externalSystems: [] },
               },
             }],
           })) }),

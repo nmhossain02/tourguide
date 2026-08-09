@@ -173,9 +173,27 @@ test("newcomer explores all catalogs and completes an isolated contribution loop
     await page.keyboard.insertText(value);
     await expect(editor.locator(".view-lines")).toHaveText(value);
   };
+  let releaseFirstReadmeSave = () => {};
+  const firstReadmeSaveReleased = new Promise<void>((resolve) => { releaseFirstReadmeSave = resolve; });
+  let observeFirstReadmeSave = () => {};
+  const firstReadmeSaveStarted = new Promise<void>((resolve) => { observeFirstReadmeSave = resolve; });
+  let delayedReadmeSave = false;
+  await page.route("**/api/exercises/*/files", async (route) => {
+    const request = route.request();
+    const payload = request.method() === "PUT" ? request.postDataJSON() as { path?: string } : {};
+    if (!delayedReadmeSave && payload.path === "README.md") {
+      delayedReadmeSave = true;
+      observeFirstReadmeSave();
+      await firstReadmeSaveReleased;
+    }
+    await route.continue();
+  });
   await expect(page.getByRole("textbox", { name: "Exercise file: README.md" })).toBeAttached();
+  await replaceEditorContent("# stale autosave");
+  await firstReadmeSaveStarted;
   await replaceEditorContent("# changed");
   await page.getByRole("button", { name: "package.json", exact: true }).click();
+  releaseFirstReadmeSave();
   await expect(page.getByRole("textbox", { name: "Exercise file: package.json" })).toBeAttached();
   await replaceEditorContent('{"name":"changed-package"}');
   await page.getByRole("button", { name: "Verify" }).click();

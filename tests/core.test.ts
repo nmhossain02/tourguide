@@ -29,6 +29,7 @@ import {
   parseSnapshot,
   planDocumentationUpdate,
   runRecipe,
+  runRecipeInWorkspace,
   validateSnapshot,
   type TourSnapshot,
   type KnowledgeAdapter,
@@ -440,6 +441,24 @@ describe("recipe runtime", () => {
     expect(result.patch).not.toContain(process.env.HOME ?? "__missing_home__");
     await expect(readFile(join(root, "new.txt"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
   });
+
+  it("enforces writes against the recipe delta instead of pre-existing provider files", async () => {
+    const root = await repository();
+    await mkdir(join(root, ".tourguide-runtime", "fixture"), { recursive: true });
+    await writeFile(join(root, ".tourguide-runtime", "fixture", "server.mjs"), "export const ready = true;\n");
+    const base = {
+      id: "provider-invocation", title: "Provider invocation", command: process.execPath,
+      cwd: ".", lifecycle: "oneshot" as const, timeoutMs: 5_000, env: {}, inputs: [],
+      capabilities: { writes: [], network: "none" as const, secrets: [], containers: false, externalSystems: [] },
+    };
+    const unchanged = await runRecipeInWorkspace(root, { ...base, args: ["-e", "console.log('ok')"] });
+    expect(unchanged.undeclaredWrites).toEqual([]);
+    const escaped = await runRecipeInWorkspace(root, {
+      ...base,
+      args: ["-e", "require('node:fs').writeFileSync('outside.txt','bad')"],
+    });
+    expect(escaped.undeclaredWrites).toEqual(["outside.txt"]);
+  });
 });
 
 describe("exercise workspaces", () => {
@@ -548,6 +567,39 @@ describe("process-local module labs", () => {
     expect(invoked).toMatchObject({ adapterId: "http", provenance: "production", value: { status: 200, body: "fixture" } });
     await manager.shutdown();
     await expect(fetch(`http://127.0.0.1:${service.port}/`, { signal: AbortSignal.timeout(500) })).rejects.toThrow();
+  });
+
+  it("rejects undeclared preparation writes and service spawn errors without crashing", async () => {
+    const root = await repository();
+    const tour = await buildStarterTour(await inspectRepository(root));
+    const module = tour.modules[0]!;
+    tour.labEnvironments = [{
+      id: "unsafe-preparation", moduleId: module.id, title: "Unsafe preparation", adapterIds: [], editablePaths: [],
+      dependencies: [], services: [], readiness: "ready",
+      preparationRecipes: [{
+        id: "unsafe-preparation", title: "Unsafe preparation", command: process.execPath,
+        args: ["-e", "require('node:fs').writeFileSync('outside.txt','bad')"], cwd: ".", lifecycle: "oneshot",
+        timeoutMs: 5_000, env: {}, inputs: [],
+        capabilities: { writes: [], network: "none", secrets: [], containers: false, externalSystems: [] },
+      }],
+    }];
+    const manager = new LabManager(root);
+    await expect(manager.create(tour, module.id)).rejects.toThrow("Lab preparation wrote outside its declaration");
+
+    tour.labEnvironments = [{
+      id: "missing-service", moduleId: module.id, title: "Missing service", adapterIds: [], editablePaths: [],
+      dependencies: [], preparationRecipes: [], readiness: "ready",
+      services: [{
+        id: "missing-service", title: "Missing service", portEnv: "PORT", healthTimeoutMs: 1_000,
+        recipe: {
+          id: "missing-service", title: "Missing service", command: "tourguide-command-that-does-not-exist",
+          args: [], cwd: ".", lifecycle: "service", timeoutMs: 5_000, env: {}, inputs: [],
+          capabilities: { writes: [], network: "loopback", secrets: [], containers: false, externalSystems: [] },
+        },
+      }],
+    }];
+    await expect(manager.create(tour, module.id)).rejects.toThrow(/ENOENT|not found/i);
+    await manager.shutdown();
   });
 
   it("waits for ports, selects the API service, and resets service state", async () => {

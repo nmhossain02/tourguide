@@ -12,7 +12,13 @@ interface BrowserLabState {
   activePath?: string;
   content: string;
   patch: string;
-  dirtyPaths: string[];
+  dirtyBuffers: DirtyBuffer[];
+}
+
+interface DirtyBuffer {
+  path: string;
+  value: string;
+  version: number;
 }
 
 const browserLabs = new Map<string, BrowserLabState>();
@@ -49,13 +55,21 @@ export function ExerciseView({ page, onProgress }: { page: Page; onProgress(patc
   const [hintCount, setHintCount] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const dirtyPaths = useRef(new Set(cached?.dirtyPaths ?? []));
+  const dirtyBuffers = useRef(new Map((cached?.dirtyBuffers ?? []).map((buffer) => [buffer.path, buffer])));
+  const nextBufferVersion = useRef(Math.max(0, ...(cached?.dirtyBuffers ?? []).map((buffer) => buffer.version)) + 1);
   const saveWrites = useRef(Promise.resolve());
 
   const queueSave = (sessionId: string, path: string, value: string) => {
     const write = saveWrites.current.catch(() => undefined).then(() => api.saveExerciseFile(sessionId, path, value)).then(() => undefined);
     saveWrites.current = write.catch(() => undefined);
     return write;
+  };
+
+  const persistBuffer = async (sessionId: string, buffer: DirtyBuffer) => {
+    await queueSave(sessionId, buffer.path, buffer.value);
+    if (dirtyBuffers.current.get(buffer.path)?.version === buffer.version) {
+      dirtyBuffers.current.delete(buffer.path);
+    }
   };
 
   useEffect(() => {
@@ -65,24 +79,22 @@ export function ExerciseView({ page, onProgress }: { page: Page; onProgress(patc
       ...(activePath ? { activePath } : {}),
       content,
       patch,
-      dirtyPaths: [...dirtyPaths.current],
+      dirtyBuffers: [...dirtyBuffers.current.values()],
     });
   }, [page.moduleId, session, files, activePath, content, patch]);
 
   useEffect(() => {
-    if (!session || !activePath || !dirtyPaths.current.has(activePath)) return;
-    const path = activePath;
-    const value = content;
+    if (!session || !activePath) return;
+    const buffer = dirtyBuffers.current.get(activePath);
+    if (!buffer) return;
     const timer = window.setTimeout(() => {
-      void queueSave(session.id, path, value).then(() => {
-        setFiles((current) => current.map((file) => file.path === path ? { ...file, content: value } : file));
-      }).catch((reason) => setError(errorMessage(reason)));
+      void persistBuffer(session.id, buffer).catch((reason) => setError(errorMessage(reason)));
     }, 450);
     return () => window.clearTimeout(timer);
   }, [session?.id, activePath, content]);
 
   const installFiles = (nextFiles: LabFile[]) => {
-    dirtyPaths.current.clear();
+    dirtyBuffers.current.clear();
     setFiles(nextFiles);
     const selectedFile = nextFiles.find((file) => file.path === activePath) ?? nextFiles[0];
     setActivePath(selectedFile?.path);
@@ -106,11 +118,10 @@ export function ExerciseView({ page, onProgress }: { page: Page; onProgress(patc
 
   const save = async () => {
     if (!session) return;
-    const pending = files.map((file) => file.path === activePath ? { ...file, content } : file)
-      .filter((file) => dirtyPaths.current.has(file.path));
-    for (const file of pending) await queueSave(session.id, file.path, file.content);
-    for (const file of pending) dirtyPaths.current.delete(file.path);
-    setFiles((current) => current.map((file) => file.path === activePath ? { ...file, content } : file));
+    while (dirtyBuffers.current.size) {
+      const pending = [...dirtyBuffers.current.values()];
+      for (const buffer of pending) await persistBuffer(session.id, buffer);
+    }
   };
 
   const run = async (action: "verify" | "format") => {
@@ -181,21 +192,19 @@ export function ExerciseView({ page, onProgress }: { page: Page; onProgress(patc
 
   const selectFile = (file: LabFile) => {
     if (activePath) {
-      if (session && dirtyPaths.current.has(activePath)) {
-        void queueSave(session.id, activePath, content).catch((reason) => setError(errorMessage(reason)));
+      const buffer = dirtyBuffers.current.get(activePath);
+      if (session && buffer) {
+        void persistBuffer(session.id, buffer).catch((reason) => setError(errorMessage(reason)));
       }
-      setFiles((current) => current.map((item) => (
-        item.path === activePath ? { ...item, content } : item
-      )));
     }
     setActivePath(file.path);
-    setContent(file.content);
+    setContent(dirtyBuffers.current.get(file.path)?.value ?? file.content);
   };
 
   const changeContent = (value: string) => {
     setContent(value);
     if (!activePath) return;
-    dirtyPaths.current.add(activePath);
+    dirtyBuffers.current.set(activePath, { path: activePath, value, version: nextBufferVersion.current++ });
     setFiles((current) => current.map((file) => file.path === activePath ? { ...file, content: value } : file));
   };
 

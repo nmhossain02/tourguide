@@ -593,6 +593,9 @@ export class LabManager {
       for (const adapter of adapters) await adapter.prepare?.(context);
       for (const recipe of environment.preparationRecipes) {
         const result = await runRecipeInWorkspace(workspace, recipe, trusted);
+        if (result.undeclaredWrites.length) {
+          throw new Error(`Lab preparation wrote outside its declaration: ${result.undeclaredWrites.join(", ")}.`);
+        }
         if (result.exitCode !== 0) throw new Error(`Lab preparation failed: ${recipe.title}\n${result.stderr || result.stdout}`);
       }
       for (const service of environment.services) await this.startService(internal, service);
@@ -622,12 +625,18 @@ export class LabManager {
       env: { PATH: process.env.PATH ?? "", HOME: home, ...Object.fromEntries(Object.entries(definition.recipe.env).map(([key, value]) => [key, replacePort(value)])), [definition.portEnv]: String(port) },
       stdio: ["ignore", "pipe", "pipe"],
     });
+    const spawnFailure = new Promise<never>((_resolve, reject) => {
+      child.once("error", (error) => {
+        state.status = "failed";
+        reject(error);
+      });
+    });
     internal.processes.set(definition.id, child);
     child.stdout?.on("data", (chunk: Buffer) => { state.stdout = appendBounded(state.stdout, chunk); });
     child.stderr?.on("data", (chunk: Buffer) => { state.stderr = appendBounded(state.stderr, chunk); });
     child.once("close", () => { if (state.status !== "stopped") state.status = "failed"; });
-    await waitForPort(port, definition.healthTimeoutMs, child);
-    if (healthUrl) await waitForHealth(healthUrl, definition.healthTimeoutMs, child);
+    await Promise.race([waitForPort(port, definition.healthTimeoutMs, child), spawnFailure]);
+    if (healthUrl) await Promise.race([waitForHealth(healthUrl, definition.healthTimeoutMs, child), spawnFailure]);
     state.status = "ready";
   }
 

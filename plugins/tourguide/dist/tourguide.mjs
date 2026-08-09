@@ -64051,6 +64051,21 @@ var RuntimeProviderArtifactSchema = external_exports.object({
   invocations: external_exports.array(RuntimeProviderInvocationSchema).default([]),
   validation: IntelligenceValidationSchema
 });
+var RuntimeSubjectRegistryArtifactSchema = external_exports.object({
+  schemaVersion: external_exports.literal(1),
+  id: external_exports.string().min(1),
+  cacheKey: external_exports.string().min(1),
+  providerCacheKey: external_exports.string().min(1),
+  profileId: external_exports.string().min(1),
+  subjectRegistryFingerprint: external_exports.string().min(1),
+  subjects: external_exports.array(external_exports.object({
+    id: external_exports.string().min(1),
+    contractFingerprint: external_exports.string().min(1),
+    evidenceFingerprint: external_exports.string().min(1)
+  })),
+  generatedAt: external_exports.string(),
+  validation: IntelligenceValidationSchema
+});
 var TourImpactAssessmentArtifactSchema = external_exports.object({
   schemaVersion: external_exports.literal(1),
   id: external_exports.string().min(1),
@@ -65462,7 +65477,7 @@ function profileFor(domain2, subjects, knowledge) {
       domain2,
       ...relevantConfiguration.map((file2) => [file2.path, file2.contentHash])
     ]),
-    subjectRegistryFingerprint: hash2(subjects.map((subject) => [subject.id, subject.contractFingerprint]).sort()),
+    subjectRegistryFingerprint: hash2(subjects.map((subject) => [subject.id, subject.contractFingerprint, subject.evidenceFingerprint]).sort()),
     readiness: "ready",
     probeStatus: "unprobed"
   };
@@ -65812,17 +65827,22 @@ async function validateSnapshot(snapshot, root, options = {}) {
   const errors = [];
   const warnings = [];
   const knowledgeItems = options.knowledge ? new Map(allKnowledgeItems(options.knowledge).map((item) => [item.id, item])) : void 0;
+  if (!options.knowledge) {
+    const message = `Tour knowledge snapshot ${snapshot.knowledgeSnapshotId} was not available for validation.`;
+    (options.partial ? warnings : errors).push(message);
+  }
   if (options.knowledge && options.knowledge.id !== snapshot.knowledgeSnapshotId) {
     errors.push(`Tour knowledge snapshot ${snapshot.knowledgeSnapshotId} does not match ${options.knowledge.id}.`);
   }
   if (snapshot.documentationSnapshotId && options.documentation && options.documentation.id !== snapshot.documentationSnapshotId) {
     errors.push(`Tour documentation snapshot ${snapshot.documentationSnapshotId} does not match ${options.documentation.id}.`);
   } else if (snapshot.documentationSnapshotId && !options.documentation) {
-    warnings.push(`Tour documentation snapshot ${snapshot.documentationSnapshotId} was not available for validation.`);
+    const message = `Tour documentation snapshot ${snapshot.documentationSnapshotId} was not available for validation.`;
+    (options.partial ? warnings : errors).push(message);
   }
   const validateKnowledgeRef = (reference, owner) => {
     if (!knowledgeItems) {
-      warnings.push(`${owner} has a knowledge reference that was not checked against a catalog.`);
+      if (options.partial) warnings.push(`${owner} has a knowledge reference that was not checked against a catalog.`);
       return;
     }
     const item = knowledgeItems.get(reference.itemId);
@@ -65831,7 +65851,7 @@ async function validateSnapshot(snapshot, root, options = {}) {
   };
   const validateDocumentationBinding = (binding, owner) => {
     if (!options.documentation) {
-      warnings.push(`${owner} has a semantic documentation binding that was not resolved.`);
+      if (options.partial) warnings.push(`${owner} has a semantic documentation binding that was not resolved.`);
       return;
     }
     const resolution = resolveSemanticBinding(options.documentation, binding);
@@ -66155,6 +66175,14 @@ var TourStore = class {
     const parsed = RuntimeProviderArtifactSchema.parse(value);
     await atomicJson(join(this.base, "cache", "intelligence", "runtime", `${encodeURIComponent(parsed.cacheKey)}.json`), parsed);
   }
+  async runtimeSubjectRegistryArtifact(cacheKey) {
+    const value = await readJson(join(this.base, "cache", "intelligence", "runtime-registry", `${encodeURIComponent(cacheKey)}.json`));
+    return value === void 0 ? void 0 : RuntimeSubjectRegistryArtifactSchema.parse(value);
+  }
+  async saveRuntimeSubjectRegistryArtifact(value) {
+    const parsed = RuntimeSubjectRegistryArtifactSchema.parse(value);
+    await atomicJson(join(this.base, "cache", "intelligence", "runtime-registry", `${encodeURIComponent(parsed.cacheKey)}.json`), parsed);
+  }
   async tourImpactArtifact(cacheKey) {
     const value = await readJson(join(this.base, "cache", "intelligence", "tour-impact", `${encodeURIComponent(cacheKey)}.json`));
     return value === void 0 ? void 0 : TourImpactAssessmentArtifactSchema.parse(value);
@@ -66277,8 +66305,8 @@ var TourStore = class {
 // ../core/src/runtime.ts
 import { spawn } from "child_process";
 import { execFile as execFile2 } from "child_process";
-import { randomUUID as randomUUID3 } from "crypto";
-import { mkdir as mkdir2, rm as rm2 } from "fs/promises";
+import { createHash as createHash4, randomUUID as randomUUID3 } from "crypto";
+import { lstat, mkdir as mkdir2, readFile as readFile3, readlink, rm as rm2 } from "fs/promises";
 import { resolve as resolve2, relative, isAbsolute, join as join2 } from "path";
 import { promisify as promisify2 } from "util";
 var execFileAsync2 = promisify2(execFile2);
@@ -66348,17 +66376,34 @@ function materialize(recipe, values) {
   });
   return { ...recipe, args: recipe.args.map(replace), env: Object.fromEntries(Object.entries(recipe.env).map(([key, value]) => [key, replace(value)])) };
 }
-async function workspaceChanges(workspace, recipe) {
+async function visibleWorkspacePaths(workspace) {
+  const [{ stdout: changedOutput }, { stdout: untrackedOutput }] = await Promise.all([
+    execFileAsync2("git", ["-C", workspace, "diff", "HEAD", "--name-only", "-z"], { encoding: "utf8" }),
+    execFileAsync2("git", ["-C", workspace, "ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" })
+  ]);
+  return [...new Set([...changedOutput.split("\0"), ...untrackedOutput.split("\0")].filter(Boolean).filter((path2) => !path2.startsWith(".tourguide-home/")))];
+}
+async function workspaceState(workspace) {
+  const state = /* @__PURE__ */ new Map();
+  await Promise.all((await visibleWorkspacePaths(workspace)).map(async (path2) => {
+    const target = containedPath(workspace, path2);
+    try {
+      const metadata = await lstat(target);
+      const value = metadata.isSymbolicLink() ? `symlink:${await readlink(target)}` : metadata.isFile() ? await readFile3(target) : `mode:${metadata.mode}:size:${metadata.size}`;
+      const hash3 = createHash4("sha256").update(value).digest("hex");
+      state.set(path2, hash3);
+    } catch (error51) {
+      if (error51.code !== "ENOENT") throw error51;
+      state.set(path2, "missing");
+    }
+  }));
+  return state;
+}
+async function workspaceChanges(workspace, recipe, baseline) {
   const { stdout: trackedPatch } = await execFileAsync2("git", ["-C", workspace, "diff", "--binary"], {
     encoding: "utf8",
     maxBuffer: 8 * 1024 * 1024
   });
-  const { stdout: changedOutput } = await execFileAsync2(
-    "git",
-    ["-C", workspace, "status", "--porcelain=v1", "-z"],
-    { encoding: "utf8" }
-  );
-  const changedFiles = changedOutput.split("\0").filter(Boolean).map((entry) => entry.slice(3));
   const { stdout: untrackedOutput } = await execFileAsync2(
     "git",
     ["-C", workspace, "ls-files", "--others", "--exclude-standard", "-z"],
@@ -66381,14 +66426,13 @@ async function workspaceChanges(workspace, recipe) {
   const declared = (path2) => recipe.capabilities.writes.some(
     (pattern) => pattern === path2 || pattern.endsWith("/**") && path2.startsWith(pattern.slice(0, -3))
   );
-  const visibleChanges = [.../* @__PURE__ */ new Set([
-    ...changedFiles.filter((path2) => !path2.startsWith(".tourguide-home/")),
-    ...untracked
-  ])];
+  const current = await workspaceState(workspace);
+  const visibleChanges = [...current.keys()];
+  const recipeChanges = [.../* @__PURE__ */ new Set([...baseline.keys(), ...current.keys()])].filter((path2) => baseline.get(path2) !== current.get(path2));
   return {
     patch: patches.join(""),
     changedFiles: visibleChanges,
-    undeclaredWrites: visibleChanges.filter((path2) => !declared(path2))
+    undeclaredWrites: recipeChanges.filter((path2) => !declared(path2))
   };
 }
 async function runRecipeInWorkspace(workspace, input, trusted = false, values = {}) {
@@ -66398,8 +66442,9 @@ async function runRecipeInWorkspace(workspace, input, trusted = false, values = 
   }
   const isolatedHome = join2(workspace, ".tourguide-home");
   await mkdir2(isolatedHome, { recursive: true });
+  const baseline = await workspaceState(workspace);
   const result2 = await execute(workspace, recipe, isolatedHome);
-  const changes = await workspaceChanges(workspace, recipe);
+  const changes = await workspaceChanges(workspace, recipe, baseline);
   return {
     ...result2,
     isolated: true,
@@ -66423,7 +66468,7 @@ async function runRecipe(root, input, trusted = false, values = {}, revision = "
 // ../core/src/exercise.ts
 import { execFile as execFile3 } from "child_process";
 import { randomUUID as randomUUID4 } from "crypto";
-import { lstat, mkdir as mkdir3, readFile as readFile3, rm as rm3, writeFile as writeFile2 } from "fs/promises";
+import { lstat as lstat2, mkdir as mkdir3, readFile as readFile4, rm as rm3, writeFile as writeFile2 } from "fs/promises";
 import { isAbsolute as isAbsolute2, relative as relative2, resolve as resolve3, sep } from "path";
 import { promisify as promisify3 } from "util";
 var execFileAsync3 = promisify3(execFile3);
@@ -66436,7 +66481,7 @@ import { randomUUID as randomUUID5 } from "crypto";
 // ../core/src/lab.ts
 import { execFile as execFile4, spawn as spawn2 } from "child_process";
 import { randomUUID as randomUUID6 } from "crypto";
-import { lstat as lstat2, mkdir as mkdir4, readFile as readFile4, rm as rm4, writeFile as writeFile3 } from "fs/promises";
+import { lstat as lstat3, mkdir as mkdir4, readFile as readFile5, rm as rm4, writeFile as writeFile3 } from "fs/promises";
 import { dirname as dirname2, isAbsolute as isAbsolute3, relative as relative3, resolve as resolve4, sep as sep2 } from "path";
 import { promisify as promisify4 } from "util";
 var execFileAsync4 = promisify4(execFile4);
@@ -66481,8 +66526,17 @@ function componentSupport(context, request) {
 function functionSupport(_context, request) {
   return request.item.catalog === "code-docs" && request.item.kind === "symbol" && Boolean(request.item.path && /\.(mjs|cjs|js)$/.test(request.item.path));
 }
+function selectedHttpService(context, request) {
+  const ready = context.session.services.filter((service) => service.status === "ready");
+  const requestedId = typeof request.inputs.serviceId === "string" ? request.inputs.serviceId : void 0;
+  if (requestedId) return ready.find((service) => service.id === requestedId);
+  const apiServices = ready.filter((service) => /(?:^|[-_:])(api|http|backend|server)(?:$|[-_:])/i.test(`-${service.id}-`));
+  if (apiServices.length === 1) return apiServices[0];
+  const nonPreview = ready.filter((service) => !/(?:story|preview|storybook)/i.test(service.id));
+  return nonPreview.length === 1 ? nonPreview[0] : void 0;
+}
 function httpSupport(context, request) {
-  return request.item.catalog === "api" && Boolean(request.item.route) && context.session.services.some((service) => service.status === "ready");
+  return request.item.catalog === "api" && Boolean(request.item.route) && Boolean(selectedHttpService(context, request));
 }
 function sqliteSupport(_context, request) {
   return request.item.catalog === "data-model";
@@ -66519,7 +66573,7 @@ async function functionInvocation(context, request) {
 }
 async function httpInvocation(context, request) {
   if (request.item.catalog !== "api" || !request.item.route) throw new Error("HTTP interactions require an indexed API endpoint.");
-  const service = context.session.services.find((candidate) => candidate.status === "ready");
+  const service = selectedHttpService(context, request);
   if (!service) throw new Error("The lab environment has no ready HTTP service.");
   const route = request.item.route.replace(/[{:]([A-Za-z_][\w]*)}?/g, (token, key) => key in request.inputs ? encodeURIComponent(String(request.inputs[key])) : token);
   const url2 = new URL(route, `http://127.0.0.1:${service.port}`);
@@ -66646,6 +66700,7 @@ async function invokeRuntimeProvider(context, provider, capability, request) {
     return { adapterId: provider.id, provenance: "tourguide-harness", value: { url: url2.toString() }, logs: [] };
   }
   const result2 = await runRecipeInWorkspace(context.session.workspace, invocation.recipe, false, invocationValues(invocation.recipe, request));
+  if (result2.undeclaredWrites.length) throw new Error(`Runtime provider wrote outside its declaration: ${result2.undeclaredWrites.join(", ")}.`);
   if (result2.exitCode !== 0 || result2.timedOut) throw new Error(result2.stderr || result2.stdout || `Runtime provider ${provider.id} failed.`);
   const output = result2.stdout.trim();
   let value = output;
@@ -66672,7 +66727,7 @@ async function assertEditable(workspace, path2) {
   const target = resolve4(workspace, safeRelativePath(path2));
   const rel = relative3(workspace, target);
   if (rel.startsWith("..") || isAbsolute3(rel)) throw new Error("Lab path escapes its workspace.");
-  const stat = await lstat2(target);
+  const stat = await lstat3(target);
   if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("Only regular, non-symlink files can be edited.");
   if (stat.size > MAX_EDITABLE_BYTES2) throw new Error("Lab file is too large for the browser editor.");
   return target;
@@ -66771,6 +66826,29 @@ async function waitForHealth(url2, timeoutMs, child) {
   }
   throw new Error(`Service health check timed out: ${url2}`);
 }
+async function waitForPort(port, timeoutMs, child) {
+  const { createConnection } = await import("net");
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) throw new Error("Service exited before binding its allocated port.");
+    const connected = await new Promise((resolveConnection) => {
+      const socket = createConnection({ host: "127.0.0.1", port });
+      socket.setTimeout(500);
+      socket.once("connect", () => {
+        socket.destroy();
+        resolveConnection(true);
+      });
+      socket.once("timeout", () => {
+        socket.destroy();
+        resolveConnection(false);
+      });
+      socket.once("error", () => resolveConnection(false));
+    });
+    if (connected) return;
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+  }
+  throw new Error(`Service port readiness timed out: ${port}`);
+}
 function terminate(child) {
   if (child.exitCode !== null) return;
   if (process.platform !== "win32" && child.pid) {
@@ -66780,6 +66858,25 @@ function terminate(child) {
       child.kill("SIGTERM");
     }
   } else child.kill("SIGTERM");
+}
+async function terminateAndWait(child) {
+  if (child.exitCode !== null) return;
+  const closed = new Promise((resolveClose) => child.once("close", () => resolveClose()));
+  terminate(child);
+  const graceful = await Promise.race([
+    closed.then(() => true),
+    new Promise((resolveTimeout) => setTimeout(() => resolveTimeout(false), 2e3))
+  ]);
+  if (!graceful && child.exitCode === null) {
+    if (process.platform !== "win32" && child.pid) {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        child.kill("SIGKILL");
+      }
+    } else child.kill("SIGKILL");
+    await closed;
+  }
 }
 var LabManager = class {
   constructor(root, registry2 = defaultLabRegistry(), idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS) {
@@ -66802,6 +66899,12 @@ var LabManager = class {
     internal.session.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
     internal.session.expiresAt = new Date(Date.now() + this.idleTimeoutMs).toISOString();
     return internal;
+  }
+  async stopServices(internal) {
+    for (const state of internal.session.services) state.status = "stopped";
+    await Promise.all([...internal.processes.values()].map(terminateAndWait));
+    internal.processes.clear();
+    internal.session.services = [];
   }
   get(id) {
     return { ...this.require(id).session };
@@ -66854,6 +66957,9 @@ var LabManager = class {
       for (const adapter of adapters) await adapter.prepare?.(context);
       for (const recipe of environment.preparationRecipes) {
         const result2 = await runRecipeInWorkspace(workspace, recipe, trusted);
+        if (result2.undeclaredWrites.length) {
+          throw new Error(`Lab preparation wrote outside its declaration: ${result2.undeclaredWrites.join(", ")}.`);
+        }
         if (result2.exitCode !== 0) throw new Error(`Lab preparation failed: ${recipe.title}
 ${result2.stderr || result2.stdout}`);
       }
@@ -66883,6 +66989,12 @@ ${result2.stderr || result2.stdout}`);
       env: { PATH: process.env.PATH ?? "", HOME: home, ...Object.fromEntries(Object.entries(definition.recipe.env).map(([key, value]) => [key, replacePort(value)])), [definition.portEnv]: String(port) },
       stdio: ["ignore", "pipe", "pipe"]
     });
+    const spawnFailure = new Promise((_resolve, reject) => {
+      child.once("error", (error51) => {
+        state.status = "failed";
+        reject(error51);
+      });
+    });
     internal.processes.set(definition.id, child);
     child.stdout?.on("data", (chunk) => {
       state.stdout = appendBounded(state.stdout, chunk);
@@ -66893,14 +67005,15 @@ ${result2.stderr || result2.stdout}`);
     child.once("close", () => {
       if (state.status !== "stopped") state.status = "failed";
     });
-    if (healthUrl) await waitForHealth(healthUrl, definition.healthTimeoutMs, child);
+    await Promise.race([waitForPort(port, definition.healthTimeoutMs, child), spawnFailure]);
+    if (healthUrl) await Promise.race([waitForHealth(healthUrl, definition.healthTimeoutMs, child), spawnFailure]);
     state.status = "ready";
   }
   async files(id) {
     const internal = this.require(id);
     return Promise.all(internal.session.editablePaths.map(async (path2) => ({
       path: path2,
-      content: await readFile4(await assertEditable(internal.session.workspace, path2), "utf8")
+      content: await readFile5(await assertEditable(internal.session.workspace, path2), "utf8")
     })));
   }
   async write(id, path2, content) {
@@ -66960,8 +67073,7 @@ ${result2.stderr || result2.stdout}`);
   async reset(id) {
     const internal = this.require(id);
     if (internal.session.status === "retained") throw new Error("A retained lab cannot be reset.");
-    for (const process11 of internal.processes.values()) terminate(process11);
-    internal.processes.clear();
+    await this.stopServices(internal);
     await removeWorktree(this.root, internal.session.workspace);
     await addWorktree(this.root, internal.session.workspace, internal.session.commit);
     await materializeRuntimeProviders(internal.session.workspace, internal.environment.runtimeProviders);
@@ -66982,13 +67094,13 @@ ${result2.stderr || result2.stdout}`);
     internal.session.status = "retained";
     internal.session.retainedBranch = branch;
     internal.session.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    for (const process11 of internal.processes.values()) terminate(process11);
+    await this.stopServices(internal);
     return { ...internal.session };
   }
   async close(id, forceRemoveRetained = false) {
     const internal = this.#sessions.get(id);
     if (!internal) return;
-    for (const process11 of internal.processes.values()) terminate(process11);
+    await this.stopServices(internal);
     const context = { root: this.root, snapshot: internal.snapshot, module: internal.module, environment: internal.environment, session: internal.session };
     for (const adapter of internal.environment.adapterIds.map((adapterId) => this.registry.require(adapterId)).reverse()) await adapter.close?.(context);
     const retained = internal.session.status === "retained";
@@ -67627,7 +67739,7 @@ var open_default = open;
 
 // src/codex-exec.ts
 import { execFile as execFile11, spawn as spawn3 } from "child_process";
-import { mkdtemp, readFile as readFile5, rm as rm5, writeFile as writeFile4 } from "fs/promises";
+import { mkdtemp, readFile as readFile6, rm as rm5, writeFile as writeFile4 } from "fs/promises";
 import { join as join4 } from "path";
 import { tmpdir } from "os";
 import { promisify as promisify11 } from "util";
@@ -67872,7 +67984,7 @@ var CodexExecRunner = class {
           }
         });
       });
-      const raw = JSON.parse(await readFile5(outputPath, "utf8"));
+      const raw = JSON.parse(await readFile6(outputPath, "utf8"));
       const parsed = request.schema.parse(normalizeCodexOutput(raw));
       return {
         value: parsed,
@@ -77665,6 +77777,13 @@ function runtimeCacheKey(profile) {
     dependencyFingerprint: profile.dependencyFingerprint
   });
 }
+function runtimeRegistryCacheKey(profile, providerCacheKey) {
+  return intelligenceFingerprint({
+    kind: "runtime-subject-registry",
+    providerCacheKey,
+    subjectRegistryFingerprint: profile.subjectRegistryFingerprint
+  });
+}
 function tourContractFingerprint(tour) {
   return intelligenceFingerprint({
     tracks: tour.tracks.map(({ id, moduleIds }) => ({ id, moduleIds })),
@@ -77766,11 +77885,11 @@ function deterministicProvider(profile, inventory, documentation) {
     services: [],
     invocations: [],
     validation: {
-      status: "pass",
-      validator: "deterministic-provider-probe-v1",
+      status: "fail",
+      validator: "deterministic-provider-unprobed-v1",
       validatedAt: generatedAt,
       inputFingerprint: cacheKey,
-      diagnostics: []
+      diagnostics: ["Repository capability was detected but has not been executed."]
     }
   });
 }
@@ -77790,11 +77909,21 @@ ${JSON.stringify({
     dependencies: documentation.dependencyContracts.filter((contract) => contract.subjectIds.some((subjectId) => subjectIds.has(subjectId)))
   }, null, 2)}
 
-Return one provider per profile using its exact profileId. A provider may create files inside its own directory, run preparation commands, start loopback services, and declare capability invocations. Command invocations receive reserved inputs named payload, subject_id, subject_path, and subject_symbol. Emit JSON directly or on a line prefixed __TOURGUIDE_RESULT__. Service URL paths may use {{subject_id}}, {{subject_path}}, {{subject_symbol}}, and {{input.NAME}} placeholders.`;
+Return one provider per profile using its exact profileId. A provider may create files inside its own directory, run preparation commands, start loopback services, and declare capability invocations. Command invocations receive reserved inputs named payload, subject_id, subject_path, and subject_symbol. Emit JSON directly or on a line prefixed __TOURGUIDE_RESULT__. Service URL paths may use {{subject_id}}, {{subject_path}}, {{subject_symbol}}, and {{input.NAME}} placeholders. Multi-subject providers must bind every invocation to a subject or scenario input. Generated command results must include the requested subject ID, path, or symbol as result metadata. Generated component HTML must include the requested subject or scenario identifier in visible text or a data-tourguide-subject attribute so registry probes can verify that the correct component rendered.`;
 }
-function normalizeRecipe(value, providerRoot2) {
+function normalizedProviderWrite(path2, cwdMode, providerRoot2) {
+  const normalized = path2.replaceAll("\\", "/");
+  if (!safeProviderPath(normalized)) return void 0;
+  const candidate = posix2.normalize(cwdMode === "provider" ? posix2.join(providerRoot2, normalized) : normalized);
+  return candidate.startsWith(`${providerRoot2}/`) ? candidate : void 0;
+}
+function normalizeRecipe(value, providerRoot2, diagnostics) {
   const cwd = value.cwdMode === "provider" ? providerRoot2 : ".";
-  const writes = value.capabilities.writes.map((path2) => value.cwdMode === "provider" ? posix2.join(providerRoot2, path2) : path2);
+  const writes = value.capabilities.writes.flatMap((path2) => {
+    const normalized = normalizedProviderWrite(path2, value.cwdMode, providerRoot2);
+    if (!normalized) diagnostics.push(`Recipe ${value.id} writes outside provider root: ${path2}.`);
+    return normalized ? [normalized] : [];
+  });
   return {
     id: value.id,
     title: value.title,
@@ -77811,7 +77940,7 @@ function normalizeRecipe(value, providerRoot2) {
 }
 function safeProviderPath(path2) {
   const normalized = path2.replaceAll("\\", "/");
-  return Boolean(path2) && !normalized.startsWith("/") && !normalized.split("/").some((part) => !part || part === "..");
+  return Boolean(path2) && !normalized.startsWith("/") && !normalized.split("/").some((part) => !part || part === "." || part === "..");
 }
 function validateRuntimeProposal(profile, proposal, cacheKey) {
   const id = `runtime-provider:generated:${profile.id}:${cacheKey.slice(0, 12)}`;
@@ -77819,15 +77948,15 @@ function validateRuntimeProposal(profile, proposal, cacheKey) {
   const diagnostics = [];
   if (!proposal) diagnostics.push("Codex omitted this runtime profile.");
   for (const path2 of proposal?.files.map((file2) => file2.path) ?? []) if (!safeProviderPath(path2)) diagnostics.push(`Unsafe provider file path ${path2}.`);
-  const preparationRecipes = (proposal?.preparationRecipes ?? []).map((recipe) => normalizeRecipe(recipe, root));
+  const preparationRecipes = (proposal?.preparationRecipes ?? []).map((recipe) => normalizeRecipe(recipe, root, diagnostics));
   const services = (proposal?.services ?? []).map((service) => ({
     ...service,
-    recipe: normalizeRecipe({ ...service.recipe, lifecycle: "service" }, root)
+    recipe: normalizeRecipe({ ...service.recipe, lifecycle: "service" }, root, diagnostics)
   }));
   const invocations = (proposal?.invocations ?? []).map((invocation) => ({
     capability: invocation.capability,
     kind: invocation.kind,
-    ...invocation.recipe ? { recipe: normalizeRecipe({ ...invocation.recipe, lifecycle: "oneshot" }, root) } : {},
+    ...invocation.recipe ? { recipe: normalizeRecipe({ ...invocation.recipe, lifecycle: "oneshot" }, root, diagnostics) } : {},
     ...invocation.serviceId ? { serviceId: invocation.serviceId } : {},
     ...invocation.pathTemplate ? { pathTemplate: invocation.pathTemplate } : {},
     result: invocation.result
@@ -77879,9 +78008,9 @@ function runtimeWithArtifacts(documentation, artifacts) {
     })
   };
 }
-function probeItem(documentation, profile) {
-  const subject = documentation.subjects.find((candidate) => profile.subjectIds.includes(candidate.id));
-  if (!subject) throw new Error(`Runtime profile ${profile.id} has no representative subject.`);
+function probeItem(documentation, profile, subjectId) {
+  const subject = documentation.subjects.find((candidate) => candidate.id === subjectId && profile.subjectIds.includes(candidate.id));
+  if (!subject) throw new Error(`Runtime profile ${profile.id} has no subject ${subjectId}.`);
   const base = {
     id: subject.knowledgeItemId,
     title: subject.title,
@@ -77895,7 +78024,14 @@ function probeItem(documentation, profile) {
     adapterId: "living-documentation",
     tags: [subject.domain]
   };
-  if (profile.domain === "component-library") return { ...base, catalog: "components", kind: "component", props: [], storyIds: [], providers: [] };
+  if (profile.domain === "component-library") return {
+    ...base,
+    catalog: "components",
+    kind: "component",
+    props: [],
+    storyIds: Array.isArray(subject.contract.stories) ? subject.contract.stories.filter((value) => typeof value === "string") : [],
+    providers: []
+  };
   if (profile.domain === "api") return {
     ...base,
     catalog: "api",
@@ -77907,9 +78043,137 @@ function probeItem(documentation, profile) {
   if (profile.domain === "data-model") return { ...base, catalog: "data-model", kind: "table", fields: [] };
   return { ...base, catalog: "code-docs", kind: "symbol", language: "TypeScript", headings: [] };
 }
-async function probeGeneratedProvider(root, documentation, profile, artifact) {
-  if (artifact.validation.status === "fail") return artifact;
-  const item = probeItem(documentation, profile);
+function packageScript(inventory, script) {
+  if (inventory.trackedFiles.includes("pnpm-lock.yaml")) return { command: "corepack", args: ["pnpm", "run", script] };
+  if (inventory.trackedFiles.includes("yarn.lock")) return { command: "corepack", args: ["yarn", script] };
+  return { command: "npm", args: ["run", script] };
+}
+function deterministicProbeFacilities(profile, inventory, documentation) {
+  if (profile.domain === "component-library") {
+    const runner = packageScript(inventory, "storybook");
+    return {
+      adapterIds: ["storybook"],
+      preparationRecipes: [],
+      services: [{
+        id: "storybook",
+        title: "Repository Storybook",
+        portEnv: "PORT",
+        healthUrl: "http://127.0.0.1:{{port}}/index.json",
+        healthTimeoutMs: 6e4,
+        recipe: {
+          id: "storybook",
+          title: "Repository Storybook",
+          command: runner.command,
+          args: [...runner.args, "--", "--host", "127.0.0.1", "--port", "{{port}}"],
+          cwd: ".",
+          lifecycle: "service",
+          timeoutMs: 9e5,
+          env: {},
+          inputs: [],
+          capabilities: { writes: [], network: "loopback", secrets: [], containers: false, externalSystems: [] }
+        }
+      }]
+    };
+  }
+  if (profile.domain === "api") {
+    const runner = packageScript(inventory, "dev");
+    return {
+      adapterIds: ["http"],
+      preparationRecipes: [],
+      services: [{
+        id: "api",
+        title: "Repository API",
+        portEnv: "PORT",
+        healthTimeoutMs: 6e4,
+        recipe: {
+          id: "api",
+          title: "Repository API",
+          command: runner.command,
+          args: runner.args,
+          cwd: ".",
+          lifecycle: "service",
+          timeoutMs: 9e5,
+          env: { DATABASE_PATH: "app.db" },
+          inputs: [],
+          capabilities: { writes: ["app.db"], network: "loopback", secrets: [], containers: false, externalSystems: [] }
+        }
+      }]
+    };
+  }
+  if (profile.domain === "data-model") {
+    const schemaPath = documentation.subjects.filter((subject) => profile.subjectIds.includes(subject.id)).flatMap((subject) => subject.evidence).find((evidence) => evidence.path?.endsWith(".sql"))?.path;
+    if (!schemaPath) return { adapterIds: [], preparationRecipes: [], services: [] };
+    return {
+      adapterIds: ["sqlite"],
+      preparationRecipes: [{
+        id: "prepare-sqlite",
+        title: "Prepare SQLite probe",
+        command: process.execPath,
+        args: ["-e", "const{readFileSync}=require('node:fs');const{DatabaseSync}=require('node:sqlite');const db=new DatabaseSync(process.argv[2]);db.exec(readFileSync(process.argv[1],'utf8'));db.close()", schemaPath, "app.db"],
+        cwd: ".",
+        lifecycle: "oneshot",
+        timeoutMs: 3e4,
+        env: {},
+        inputs: [],
+        capabilities: { writes: ["app.db"], network: "none", secrets: [], containers: false, externalSystems: [] }
+      }],
+      services: []
+    };
+  }
+  return { adapterIds: ["function-js"], preparationRecipes: [], services: [] };
+}
+function probeInputs(item) {
+  if (item.catalog === "data-model") return {
+    databasePath: "app.db",
+    query: "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+    parameters: [item.title]
+  };
+  if (item.catalog === "code-docs") return { args: [] };
+  return {};
+}
+function matchesExpected(actual, expected) {
+  if (expected === null || typeof expected !== "object") {
+    return typeof expected === "string" && typeof actual === "string" ? actual.includes(expected) : Object.is(actual, expected);
+  }
+  if (Array.isArray(expected)) {
+    return Array.isArray(actual) && expected.every((value, index) => matchesExpected(actual[index], value));
+  }
+  if (!actual || typeof actual !== "object" || Array.isArray(actual)) return false;
+  return Object.entries(expected).every(([key, value]) => matchesExpected(actual[key], value));
+}
+function invocationUsesSubject(artifact, capability, scenarioInputs) {
+  const invocation = artifact.invocations.find((candidate) => candidate.capability === capability);
+  if (!invocation) return artifact.source !== "generated";
+  const source = invocation.kind === "service-url" ? invocation.pathTemplate ?? "" : JSON.stringify({ args: invocation.recipe?.args, env: invocation.recipe?.env });
+  const scenarioTokens = Object.entries(scenarioInputs).filter(([, value]) => ["string", "number", "boolean"].includes(typeof value)).flatMap(([key]) => [`{{input.${key}}}`, `{{${key}}}`]);
+  return [
+    "{{subject_id}}",
+    "{{subject_path}}",
+    "{{subject_symbol}}",
+    ...scenarioTokens
+  ].some((token) => source.includes(token));
+}
+function responseIdentifiesSubject(item, scenarioInputs, body, html = false) {
+  const attributeValues = html ? [...body.matchAll(/data-tourguide-subject\s*=\s*["']([^"']+)["']/gi)].map((match) => match[1]) : [];
+  const comparable = html ? `${body.replace(/<[^>]*>/g, " ")} ${attributeValues.join(" ")}` : body;
+  let normalized = comparable.toLowerCase();
+  try {
+    normalized += `
+${decodeURIComponent(comparable).toLowerCase()}`;
+  } catch {
+  }
+  const markers = [
+    item.id,
+    item.title,
+    item.symbol,
+    item.path,
+    ...Object.values(scenarioInputs).filter((value) => typeof value === "string")
+  ].filter((value) => Boolean(value && value.length > 1));
+  return markers.some((marker) => normalized.includes(marker.toLowerCase()));
+}
+async function probeRuntimeProvider(root, documentation, profile, artifact, inventory) {
+  if (artifact.source === "generated" && artifact.validation.status === "fail") return artifact;
+  const facilities = artifact.source === "generated" ? { adapterIds: [], preparationRecipes: [], services: [] } : deterministicProbeFacilities(profile, inventory, documentation);
   const moduleId = "runtime-probe";
   const tour = TourSnapshotSchema.parse({
     schemaVersion: 3,
@@ -77962,12 +78226,12 @@ async function probeGeneratedProvider(root, documentation, profile, artifact) {
       id: "runtime-probe-environment",
       moduleId,
       title: "Runtime probe environment",
-      adapterIds: [],
+      adapterIds: facilities.adapterIds,
       runtimeProfileIds: [profile.id],
-      runtimeProviders: [artifact],
+      runtimeProviders: artifact.source === "generated" ? [artifact] : [],
       editablePaths: [],
-      preparationRecipes: [],
-      services: [],
+      preparationRecipes: facilities.preparationRecipes,
+      services: facilities.services,
       dependencies: [],
       readiness: "ready"
     }]
@@ -77976,10 +78240,53 @@ async function probeGeneratedProvider(root, documentation, profile, artifact) {
   const diagnostics = [];
   try {
     const { session } = await manager.create(tour, moduleId);
-    const result2 = await manager.invokeCapability(session.id, domainPrimaryCapability(profile), { item, inputs: {} });
-    if (result2.value && typeof result2.value === "object" && "url" in result2.value) {
-      const response = await fetch(String(result2.value.url), { signal: AbortSignal.timeout(5e3) });
-      if (!response.ok) diagnostics.push(`Provider URL probe returned HTTP ${response.status}.`);
+    for (const subjectId of profile.subjectIds) {
+      const item = probeItem(documentation, profile, subjectId);
+      const capability = domainPrimaryCapability(profile);
+      const scenario = documentation.scenarios.find((candidate) => candidate.subjectId === subjectId && candidate.requiredCapabilities.some((required2) => profile.capabilities.includes(required2)));
+      if (!scenario) {
+        diagnostics.push(`${subjectId}: no executable ${capability} scenario is documented.`);
+        continue;
+      }
+      if (profile.subjectIds.length > 1 && !invocationUsesSubject(artifact, capability, scenario.inputs)) {
+        diagnostics.push(`${subjectId}: provider invocation is not bound to the requested subject or scenario.`);
+        continue;
+      }
+      try {
+        const result2 = await manager.invokeCapability(session.id, capability, { item, inputs: { ...probeInputs(item), ...scenario.inputs } });
+        let observed = result2.value;
+        if (result2.value && typeof result2.value === "object" && "url" in result2.value) {
+          const response = await fetch(String(result2.value.url), { signal: AbortSignal.timeout(5e3) });
+          if (!response.ok) diagnostics.push(`${subjectId}: provider URL returned HTTP ${response.status}.`);
+          const body = await response.text();
+          observed = body;
+          try {
+            observed = JSON.parse(body);
+          } catch {
+          }
+          if (artifact.source === "generated" && profile.domain === "component-library" && !responseIdentifiesSubject(item, scenario.inputs, body, true)) {
+            diagnostics.push(`${subjectId}: rendered output does not identify the requested component or scenario.`);
+          }
+        }
+        if (item.catalog === "api" && result2.value && typeof result2.value === "object" && "status" in result2.value) {
+          const status = Number(result2.value.status);
+          if (status >= 400) diagnostics.push(`${subjectId}: API probe returned HTTP ${status}.`);
+        }
+        if (scenario.expected !== void 0) {
+          const responseBody = result2.value && typeof result2.value === "object" && "body" in result2.value ? result2.value.body : void 0;
+          if (!matchesExpected(observed, scenario.expected) && !matchesExpected(responseBody, scenario.expected)) {
+            diagnostics.push(`${subjectId}: scenario ${scenario.id} did not produce its documented expected value.`);
+          }
+        }
+        if (profile.domain === "data-model" || artifact.source === "generated" && profile.domain === "compute") {
+          const serialized = typeof observed === "string" ? observed : JSON.stringify(observed);
+          if (!responseIdentifiesSubject(item, scenario.inputs, serialized)) {
+            diagnostics.push(`${subjectId}: provider result does not identify the requested subject.`);
+          }
+        }
+      } catch (error51) {
+        diagnostics.push(`${subjectId}: ${error51 instanceof Error ? error51.message : String(error51)}`);
+      }
     }
   } catch (error51) {
     diagnostics.push(error51 instanceof Error ? error51.message : String(error51));
@@ -77994,6 +78301,32 @@ async function probeGeneratedProvider(root, documentation, profile, artifact) {
       validatedAt: (/* @__PURE__ */ new Date()).toISOString(),
       inputFingerprint: artifact.cacheKey,
       diagnostics
+    }
+  });
+}
+function runtimeRegistryArtifact(documentation, profile, provider) {
+  const cacheKey = runtimeRegistryCacheKey(profile, provider.cacheKey);
+  const subjects = profile.subjectIds.map((id) => {
+    const subject = documentation.subjects.find((candidate) => candidate.id === id);
+    if (!subject) throw new Error(`Runtime registry references missing subject ${id}.`);
+    return { id, contractFingerprint: subject.contractFingerprint, evidenceFingerprint: subject.evidenceFingerprint };
+  });
+  const generatedAt = (/* @__PURE__ */ new Date()).toISOString();
+  return RuntimeSubjectRegistryArtifactSchema.parse({
+    schemaVersion: 1,
+    id: `runtime-subject-registry:${cacheKey}`,
+    cacheKey,
+    providerCacheKey: provider.cacheKey,
+    profileId: profile.id,
+    subjectRegistryFingerprint: profile.subjectRegistryFingerprint,
+    subjects,
+    generatedAt,
+    validation: {
+      status: provider.validation.status,
+      validator: "runtime-subject-registry-probe-v1",
+      validatedAt: generatedAt,
+      inputFingerprint: cacheKey,
+      diagnostics: provider.validation.diagnostics
     }
   });
 }
@@ -78071,14 +78404,32 @@ var IntelligenceCoordinator = class {
       const cacheKey = runtimeCacheKey(profile);
       const cached2 = await this.store.runtimeProviderArtifact(cacheKey);
       if (successful(cached2, cacheKey)) {
-        artifacts.push(cached2);
         cacheHits += 1;
+        const registryKey = runtimeRegistryCacheKey(profile, cached2.cacheKey);
+        const registry2 = await this.store.runtimeSubjectRegistryArtifact(registryKey);
+        if (successful(registry2, registryKey)) {
+          artifacts.push(cached2);
+          continue;
+        }
+        const reprobed = await probeRuntimeProvider(this.root, documentation, profile, cached2, inventory);
+        const refreshedRegistry = runtimeRegistryArtifact(documentation, profile, reprobed);
+        await this.store.saveRuntimeSubjectRegistryArtifact(refreshedRegistry);
+        if (reprobed.validation.status === "pass") {
+          artifacts.push(reprobed);
+          continue;
+        }
+        missing.push({ profile, cacheKey });
         continue;
       }
       const deterministic = deterministicProvider(profile, inventory, documentation);
       if (deterministic) {
-        await this.store.saveRuntimeProviderArtifact(deterministic);
-        artifacts.push(deterministic);
+        const probed = await probeRuntimeProvider(this.root, documentation, profile, deterministic, inventory);
+        const registry2 = runtimeRegistryArtifact(documentation, profile, probed);
+        await this.store.saveRuntimeSubjectRegistryArtifact(registry2);
+        if (probed.validation.status === "pass") {
+          await this.store.saveRuntimeProviderArtifact(probed);
+          artifacts.push(probed);
+        } else missing.push({ profile, cacheKey });
       } else missing.push({ profile, cacheKey });
     }
     let generated;
@@ -78099,8 +78450,9 @@ var IntelligenceCoordinator = class {
       for (const { profile, cacheKey } of missing) {
         const proposal = generated.value.providers.find((candidate) => candidate.profileId === profile.id);
         const proposed = validateRuntimeProposal(profile, proposal, cacheKey);
-        const artifact = await probeGeneratedProvider(this.root, documentation, profile, proposed);
+        const artifact = await probeRuntimeProvider(this.root, documentation, profile, proposed, inventory);
         await this.store.saveRuntimeProviderArtifact(artifact);
+        await this.store.saveRuntimeSubjectRegistryArtifact(runtimeRegistryArtifact(documentation, profile, artifact));
         if (artifact.validation.status === "pass") artifacts.push(artifact);
       }
     }
@@ -79725,7 +80077,18 @@ async function startMcpServer(start) {
     const selected = await context();
     const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    return result({ ...await validateSnapshot(draft, selected.root, { partial: partial2 }), pageCount: draft.pages.length });
+    const [knowledge, documentation] = await Promise.all([
+      selected.store.knowledge(draft.knowledgeSnapshotId),
+      draft.documentationSnapshotId ? selected.store.documentation(draft.documentationSnapshotId) : void 0
+    ]);
+    return result({
+      ...await validateSnapshot(draft, selected.root, {
+        partial: partial2,
+        ...knowledge ? { knowledge } : {},
+        ...documentation ? { documentation } : {}
+      }),
+      pageCount: draft.pages.length
+    });
   });
   server.tool("publish_snapshot", "Publish a valid complete draft.", {
     snapshotId: external_exports.string()
@@ -79733,7 +80096,14 @@ async function startMcpServer(start) {
     const selected = await context();
     const draft = await selected.store.loadDraft(snapshotId);
     if (!draft) throw new Error(`Unknown snapshot ${snapshotId}`);
-    const report = await validateSnapshot(draft, selected.root);
+    const [knowledge, documentation] = await Promise.all([
+      selected.store.knowledge(draft.knowledgeSnapshotId),
+      draft.documentationSnapshotId ? selected.store.documentation(draft.documentationSnapshotId) : void 0
+    ]);
+    const report = await validateSnapshot(draft, selected.root, {
+      ...knowledge ? { knowledge } : {},
+      ...documentation ? { documentation } : {}
+    });
     if (!report.valid) throw new Error(`Snapshot is not publishable:
 ${report.errors.join("\n")}`);
     await selected.store.publish(draft);

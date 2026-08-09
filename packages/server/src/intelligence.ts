@@ -336,7 +336,7 @@ ${JSON.stringify({
   dependencies: documentation.dependencyContracts.filter((contract) => contract.subjectIds.some((subjectId) => subjectIds.has(subjectId))),
 }, null, 2)}
 
-Return one provider per profile using its exact profileId. A provider may create files inside its own directory, run preparation commands, start loopback services, and declare capability invocations. Command invocations receive reserved inputs named payload, subject_id, subject_path, and subject_symbol. Emit JSON directly or on a line prefixed __TOURGUIDE_RESULT__. Service URL paths may use {{subject_id}}, {{subject_path}}, {{subject_symbol}}, and {{input.NAME}} placeholders.`;
+Return one provider per profile using its exact profileId. A provider may create files inside its own directory, run preparation commands, start loopback services, and declare capability invocations. Command invocations receive reserved inputs named payload, subject_id, subject_path, and subject_symbol. Emit JSON directly or on a line prefixed __TOURGUIDE_RESULT__. Service URL paths may use {{subject_id}}, {{subject_path}}, {{subject_symbol}}, and {{input.NAME}} placeholders. Multi-subject providers must bind every invocation to a subject or scenario input. Generated command results must include the requested subject ID, path, or symbol as result metadata. Generated component HTML must include the requested subject or scenario identifier in visible text or a data-tourguide-subject attribute so registry probes can verify that the correct component rendered.`;
 }
 
 type RuntimeRecipeProposal = z.output<typeof RuntimeRecipeProposalSchema>;
@@ -544,9 +544,72 @@ function deterministicProbeFacilities(
 }
 
 function probeInputs(item: KnowledgeItem): Record<string, unknown> {
-  if (item.catalog === "data-model") return { databasePath: "app.db", query: "SELECT name FROM sqlite_master WHERE type = 'table' LIMIT 1" };
+  if (item.catalog === "data-model") return {
+    databasePath: "app.db",
+    query: "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+    parameters: [item.title],
+  };
   if (item.catalog === "code-docs") return { args: [] };
   return {};
+}
+
+function matchesExpected(actual: unknown, expected: unknown): boolean {
+  if (expected === null || typeof expected !== "object") {
+    return typeof expected === "string" && typeof actual === "string"
+      ? actual.includes(expected)
+      : Object.is(actual, expected);
+  }
+  if (Array.isArray(expected)) {
+    return Array.isArray(actual)
+      && expected.every((value, index) => matchesExpected(actual[index], value));
+  }
+  if (!actual || typeof actual !== "object" || Array.isArray(actual)) return false;
+  return Object.entries(expected).every(([key, value]) => (
+    matchesExpected((actual as Record<string, unknown>)[key], value)
+  ));
+}
+
+function invocationUsesSubject(
+  artifact: RuntimeProviderArtifact,
+  capability: string,
+  scenarioInputs: Record<string, unknown>,
+): boolean {
+  const invocation = artifact.invocations.find((candidate) => candidate.capability === capability);
+  if (!invocation) return artifact.source !== "generated";
+  const source = invocation.kind === "service-url"
+    ? invocation.pathTemplate ?? ""
+    : JSON.stringify({ args: invocation.recipe?.args, env: invocation.recipe?.env });
+  const scenarioTokens = Object.entries(scenarioInputs)
+    .filter(([, value]) => ["string", "number", "boolean"].includes(typeof value))
+    .flatMap(([key]) => [`{{input.${key}}}`, `{{${key}}}`]);
+  return [
+    "{{subject_id}}",
+    "{{subject_path}}",
+    "{{subject_symbol}}",
+    ...scenarioTokens,
+  ].some((token) => source.includes(token));
+}
+
+function responseIdentifiesSubject(
+  item: KnowledgeItem,
+  scenarioInputs: Record<string, unknown>,
+  body: string,
+  html = false,
+): boolean {
+  const attributeValues = html
+    ? [...body.matchAll(/data-tourguide-subject\s*=\s*["']([^"']+)["']/gi)].map((match) => match[1])
+    : [];
+  const comparable = html ? `${body.replace(/<[^>]*>/g, " ")} ${attributeValues.join(" ")}` : body;
+  let normalized = comparable.toLowerCase();
+  try { normalized += `\n${decodeURIComponent(comparable).toLowerCase()}`; } catch { /* Invalid percent escapes remain literal text. */ }
+  const markers = [
+    item.id,
+    item.title,
+    item.symbol,
+    item.path,
+    ...Object.values(scenarioInputs).filter((value): value is string => typeof value === "string"),
+  ].filter((value): value is string => Boolean(value && value.length > 1));
+  return markers.some((marker) => normalized.includes(marker.toLowerCase()));
 }
 
 async function probeRuntimeProvider(
@@ -628,15 +691,50 @@ async function probeRuntimeProvider(
     const { session } = await manager.create(tour, moduleId);
     for (const subjectId of profile.subjectIds) {
       const item = probeItem(documentation, profile, subjectId);
+      const capability = domainPrimaryCapability(profile);
+      const scenario = documentation.scenarios.find((candidate) => (
+        candidate.subjectId === subjectId
+        && candidate.requiredCapabilities.some((required) => profile.capabilities.includes(required))
+      ));
+      if (!scenario) {
+        diagnostics.push(`${subjectId}: no executable ${capability} scenario is documented.`);
+        continue;
+      }
+      if (profile.subjectIds.length > 1 && !invocationUsesSubject(artifact, capability, scenario.inputs)) {
+        diagnostics.push(`${subjectId}: provider invocation is not bound to the requested subject or scenario.`);
+        continue;
+      }
       try {
-        const result = await manager.invokeCapability(session.id, domainPrimaryCapability(profile), { item, inputs: probeInputs(item) });
+        const result = await manager.invokeCapability(session.id, capability, { item, inputs: { ...probeInputs(item), ...scenario.inputs } });
+        let observed = result.value;
         if (result.value && typeof result.value === "object" && "url" in result.value) {
           const response = await fetch(String((result.value as { url: unknown }).url), { signal: AbortSignal.timeout(5_000) });
           if (!response.ok) diagnostics.push(`${subjectId}: provider URL returned HTTP ${response.status}.`);
+          const body = await response.text();
+          observed = body;
+          try { observed = JSON.parse(body); } catch { /* Text responses remain text. */ }
+          if (artifact.source === "generated" && profile.domain === "component-library"
+            && !responseIdentifiesSubject(item, scenario.inputs, body, true)) {
+            diagnostics.push(`${subjectId}: rendered output does not identify the requested component or scenario.`);
+          }
         }
         if (item.catalog === "api" && result.value && typeof result.value === "object" && "status" in result.value) {
           const status = Number((result.value as { status: unknown }).status);
           if (status >= 400) diagnostics.push(`${subjectId}: API probe returned HTTP ${status}.`);
+        }
+        if (scenario.expected !== undefined) {
+          const responseBody = result.value && typeof result.value === "object" && "body" in result.value
+            ? (result.value as { body: unknown }).body
+            : undefined;
+          if (!matchesExpected(observed, scenario.expected) && !matchesExpected(responseBody, scenario.expected)) {
+            diagnostics.push(`${subjectId}: scenario ${scenario.id} did not produce its documented expected value.`);
+          }
+        }
+        if (profile.domain === "data-model" || (artifact.source === "generated" && profile.domain === "compute")) {
+          const serialized = typeof observed === "string" ? observed : JSON.stringify(observed);
+          if (!responseIdentifiesSubject(item, scenario.inputs, serialized)) {
+            diagnostics.push(`${subjectId}: provider result does not identify the requested subject.`);
+          }
         }
       } catch (error) {
         diagnostics.push(`${subjectId}: ${error instanceof Error ? error.message : String(error)}`);
