@@ -181,6 +181,9 @@ export function ExerciseView({ page, onProgress }: { page: Page; onProgress(patc
 
   const selectFile = (file: LabFile) => {
     if (activePath) {
+      if (session && dirtyPaths.current.has(activePath)) {
+        void queueSave(session.id, activePath, content).catch((reason) => setError(errorMessage(reason)));
+      }
       setFiles((current) => current.map((item) => (
         item.path === activePath ? { ...item, content } : item
       )));

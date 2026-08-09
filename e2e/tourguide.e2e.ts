@@ -12,8 +12,10 @@ import { startWebServer, type WebServerHandle } from "../packages/server/src/web
 const exec = promisify(execFile);
 let root = "";
 let server: WebServerHandle;
+const evidenceDirectory = process.env.TOURGUIDE_EVIDENCE_DIR;
 
 test.beforeAll(async () => {
+  if (evidenceDirectory) await mkdir(evidenceDirectory, { recursive: true });
   root = await mkdtemp(join(tmpdir(), "tourguide-e2e-"));
   await exec("git", ["init", "-b", "main", root]);
   await exec("git", ["-C", root, "config", "user.email", "e2e@tourguide.local"]);
@@ -53,6 +55,7 @@ test("newcomer explores all catalogs and completes an isolated contribution loop
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileTabs = await page.locator(".catalog-tabs button").evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().height));
   expect(mobileTabs.every((height) => height >= 44)).toBe(true);
+  if (evidenceDirectory) await page.screenshot({ path: join(evidenceDirectory, "mobile-codebase-explorer.png"), fullPage: true });
   await page.getByRole("button", { name: "Close codebase explorer" }).click();
   await page.setViewportSize({ width: 1280, height: 900 });
 
@@ -153,18 +156,28 @@ test("newcomer explores all catalogs and completes an isolated contribution loop
   await page.getByRole("button", { name: "Run interaction" }).click();
   await expect(page.locator(".invocation-output")).toContainText("e2e-component-provider");
   await expect(page.frameLocator(".invocation-output iframe").getByRole("button", { name: "Rendered component" })).toBeVisible();
+  if (evidenceDirectory) await page.screenshot({ path: join(evidenceDirectory, "generated-provider-render.png"), fullPage: true });
 
   await page.getByRole("button", { name: new RegExp(exercise.title) }).click();
   await page.getByRole("button", { name: "Start in an isolated workspace" }).click();
   const editor = page.locator(".exercise-editor .monaco-editor");
   await expect(editor).toBeVisible();
-  await editor.click();
-  await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
-  await page.keyboard.type("# changed");
+  const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
+  const replaceEditorContent = async (value: string) => {
+    for (let attempt = 0; attempt < 3 && await editor.locator(".view-lines").textContent(); attempt += 1) {
+      await editor.click({ position: { x: 120, y: 24 } });
+      await page.keyboard.press(selectAll);
+      await page.keyboard.press("Backspace");
+    }
+    await expect(editor.locator(".view-lines")).toBeEmpty();
+    await page.keyboard.insertText(value);
+    await expect(editor.locator(".view-lines")).toHaveText(value);
+  };
+  await expect(page.getByRole("textbox", { name: "Exercise file: README.md" })).toBeAttached();
+  await replaceEditorContent("# changed");
   await page.getByRole("button", { name: "package.json", exact: true }).click();
-  await editor.click();
-  await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
-  await page.keyboard.type('{"name":"changed-package"}');
+  await expect(page.getByRole("textbox", { name: "Exercise file: package.json" })).toBeAttached();
+  await replaceEditorContent('{"name":"changed-package"}');
   await page.getByRole("button", { name: "Verify" }).click();
   await expect(page.locator(".verification-result.pass")).toContainText("Both edited files contain their changes");
   await expect.poll(async () => (await store.progress()).pages[exercise.id]).toMatchObject({ exerciseAttempted: true, verified: true });
@@ -172,6 +185,7 @@ test("newcomer explores all catalogs and completes an isolated contribution loop
   await expect(page.locator(".patch-output")).toContainText("changed");
   await page.getByRole("button", { name: "Keep on branch" }).click();
   await expect(page.locator(".retained-branch")).toContainText("tourguide/");
+  if (evidenceDirectory) await page.screenshot({ path: join(evidenceDirectory, "verified-contribution-lab.png"), fullPage: true });
 
   expect(await readFile(join(root, "README.md"), "utf8")).toContain("Fixture workbench");
   expect((await exec("git", ["-C", root, "branch", "--show-current"])).stdout.trim()).toBe("main");
