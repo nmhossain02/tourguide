@@ -66800,6 +66800,13 @@ ${result2.stderr}`;
   }
   return { type: check2.type, status: "inconclusive", expected: "A matching interactive adapter result", observed: "This command recipe did not produce the required HTTP or database observation." };
 }
+function assertPreparationSucceeded(result2, recipe, phase) {
+  if (result2.undeclaredWrites.length) {
+    throw new Error(`${phase} wrote outside its declaration: ${result2.undeclaredWrites.join(", ")}.`);
+  }
+  if (result2.exitCode !== 0) throw new Error(`${phase} failed: ${recipe.title}
+${result2.stderr || result2.stdout}`);
+}
 async function availablePort() {
   const { createServer } = await import("net");
   return new Promise((resolvePort, reject) => {
@@ -66957,11 +66964,7 @@ var LabManager = class {
       for (const adapter of adapters) await adapter.prepare?.(context);
       for (const recipe of environment.preparationRecipes) {
         const result2 = await runRecipeInWorkspace(workspace, recipe, trusted);
-        if (result2.undeclaredWrites.length) {
-          throw new Error(`Lab preparation wrote outside its declaration: ${result2.undeclaredWrites.join(", ")}.`);
-        }
-        if (result2.exitCode !== 0) throw new Error(`Lab preparation failed: ${recipe.title}
-${result2.stderr || result2.stdout}`);
+        assertPreparationSucceeded(result2, recipe, "Lab preparation");
       }
       for (const service of environment.services) await this.startService(internal, service);
       session.status = "ready";
@@ -67079,7 +67082,7 @@ ${result2.stderr || result2.stdout}`);
     await materializeRuntimeProviders(internal.session.workspace, internal.environment.runtimeProviders);
     for (const recipe of internal.environment.preparationRecipes) {
       const result2 = await runRecipeInWorkspace(internal.session.workspace, recipe, false);
-      if (result2.exitCode !== 0) throw new Error(`Lab reset failed: ${recipe.title}`);
+      assertPreparationSucceeded(result2, recipe, "Lab reset preparation");
     }
     for (const service of internal.environment.services) await this.startService(internal, service);
     internal.session.status = "ready";
