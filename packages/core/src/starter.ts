@@ -45,6 +45,8 @@ export async function buildStarterTour(inventory: ProjectInventory): Promise<Tou
       status: "ready",
       prerequisites: [],
       evidence: sourceEvidence,
+      knowledgeRefs: [],
+      documentationBindings: [],
       interactions: sourcePath
         ? [{ type: "source", path: sourcePath, editable: false }]
         : [{ type: "data", title: "Repository inventory", columns: ["metric", "value"], rows: [{ metric: "Tracked files", value: inventory.trackedFileCount }] }],
@@ -65,6 +67,8 @@ export async function buildStarterTour(inventory: ProjectInventory): Promise<Tou
       status: "ready",
       prerequisites: ["orient-repository"],
       evidence: [{ id: "selected-revision", kind: "runtime", label: "Selected Git revision", claim: "The tour is anchored to an immutable commit.", revision: inventory.head, validated: true }],
+      knowledgeRefs: [],
+      documentationBindings: [],
       interactions: [{
         type: "data",
         title: "Two views of the repository",
@@ -91,6 +95,8 @@ export async function buildStarterTour(inventory: ProjectInventory): Promise<Tou
       status: "ready",
       prerequisites: ["orient-repository"],
       evidence: sourceEvidence,
+      knowledgeRefs: [],
+      documentationBindings: [],
       interactions: [{
         type: "topology",
         nodes: [
@@ -116,6 +122,8 @@ export async function buildStarterTour(inventory: ProjectInventory): Promise<Tou
       status: "ready",
       prerequisites: ["orient-repository"],
       evidence: [{ id: "git-history", kind: "history", label: "Recent commits", claim: "Commit subjects are read from the selected revision.", revision: inventory.head, validated: true }],
+      knowledgeRefs: [],
+      documentationBindings: [],
       interactions: [{
         type: "command",
         recipe: {
@@ -149,6 +157,8 @@ export async function buildStarterTour(inventory: ProjectInventory): Promise<Tou
       status: "ready",
       prerequisites: ["understand-revision-anchor"],
       evidence: [{ id: "git-status-evidence", kind: "runtime", label: "Git status", claim: "Git reports branch and working-tree state independently.", revision: inventory.head, validated: true }],
+      knowledgeRefs: [],
+      documentationBindings: [],
       interactions: [{
         type: "command",
         recipe: {
@@ -199,6 +209,8 @@ export async function buildStarterTour(inventory: ProjectInventory): Promise<Tou
       status: "ready",
       prerequisites: ["map-development-surfaces", "explore-recent-history", "diagnose-local-state"],
       evidence: sourceEvidence,
+      knowledgeRefs: [],
+      documentationBindings: [],
       interactions: [{
         type: "data",
         title: "Question starters",
@@ -218,14 +230,14 @@ export async function buildStarterTour(inventory: ProjectInventory): Promise<Tou
   ];
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: randomUUID(),
     projectName: inventory.name,
     repositoryRoot: inventory.root,
     anchor: { ref: inventory.ref, commit: inventory.head },
     generatedAt: new Date().toISOString(),
     generator: "tourguide-starter",
-    promptVersion: 2,
+    promptVersion: 3,
     status: "published",
     tracks: [{
       id: "core",
@@ -244,6 +256,8 @@ export async function buildStarterTour(inventory: ProjectInventory): Promise<Tou
       prerequisites: [],
       pageIds: pages.map((page) => page.id),
       surfaces: [sourcePath, ...inventory.manifests].filter((path): path is string => Boolean(path)).slice(0, 8),
+      knowledgeRefs: [],
+      documentationBindings: [],
       gaps: [],
       status: "ready",
     }],
@@ -260,5 +274,9 @@ export async function buildStarterTour(inventory: ProjectInventory): Promise<Tou
       { capability: "delivery and operations", status: "omitted", moduleIds: [], reason: "The deterministic starter does not infer delivery behavior." },
     ],
     dependencies: Object.fromEntries(pages.map((page) => [page.id, page.prerequisites])),
+    knowledgeSnapshotId: `knowledge:${inventory.head}:1`,
+    knowledgeRefs: [],
+    featureJourneys: [],
+    labEnvironments: [],
   };
 }

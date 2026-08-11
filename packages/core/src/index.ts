@@ -7,3 +7,6 @@ export * from "./store.js";
 export * from "./runtime.js";
 export * from "./exercise.js";
 export * from "./starter.js";
+export * from "./knowledge.js";
+export * from "./documentation.js";
+export * from "./lab.js";

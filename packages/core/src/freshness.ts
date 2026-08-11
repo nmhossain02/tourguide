@@ -1,4 +1,5 @@
 import { changedFilesBetween } from "./git.js";
+import { findTourKnowledgeDependents } from "./knowledge.js";
 import type { TourSnapshot } from "./schema.js";
 
 export interface FreshnessReport {
@@ -7,6 +8,8 @@ export interface FreshnessReport {
   changedFiles: string[];
   stalePageIds: string[];
   staleModuleIds: string[];
+  staleJourneyIds: string[];
+  staleLabEnvironmentIds: string[];
   /** @deprecated Use stalePageIds. */
   staleLessonIds: string[];
   fresh: boolean;
@@ -15,7 +18,7 @@ export interface FreshnessReport {
 }
 
 /** Determine which pages need review without changing the immutable snapshot. */
-export async function assessFreshness(root: string, snapshot: TourSnapshot, currentHead: string): Promise<FreshnessReport> {
+export async function assessFreshness(root: string, snapshot: TourSnapshot, currentHead: string, changedKnowledgeItemIds: string[] = []): Promise<FreshnessReport> {
   const authoredHead = snapshot.anchor.commit;
   let historyAvailable = true;
   const changedFiles = authoredHead === currentHead
@@ -30,6 +33,8 @@ export async function assessFreshness(root: string, snapshot: TourSnapshot, curr
       .filter((page) => page.evidence.some((evidence) => evidence.path && changed.has(evidence.path)))
       .map((page) => page.id),
   );
+  const knowledgeDependents = findTourKnowledgeDependents(snapshot, changedKnowledgeItemIds);
+  for (const pageId of knowledgeDependents.pageIds) stale.add(pageId);
   if (!historyAvailable) for (const page of snapshot.pages) stale.add(page.id);
 
   // A page that builds on stale material also needs review, even if its own
@@ -45,9 +50,9 @@ export async function assessFreshness(root: string, snapshot: TourSnapshot, curr
       }
     }
   }
-  const staleModuleIds = snapshot.modules
+  const staleModuleIds = [...new Set([...knowledgeDependents.moduleIds, ...snapshot.modules
     .filter((module) => module.pageIds.some((id) => stale.has(id)))
-    .map((module) => module.id);
+    .map((module) => module.id)])];
 
   return {
     currentHead,
@@ -55,6 +60,8 @@ export async function assessFreshness(root: string, snapshot: TourSnapshot, curr
     changedFiles,
     stalePageIds: [...stale],
     staleModuleIds,
+    staleJourneyIds: knowledgeDependents.journeyIds,
+    staleLabEnvironmentIds: knowledgeDependents.labEnvironmentIds,
     staleLessonIds: [...stale],
     fresh: authoredHead === currentHead,
     historyAvailable,

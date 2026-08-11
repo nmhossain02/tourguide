@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: Polyglot shop
+  version: 1.0.0
+paths:
+  /api/orders:
+    get:
+      operationId: listOrders
+      summary: List persisted orders
+      responses:
+        "200":
+          description: Orders with mock dependency provenance

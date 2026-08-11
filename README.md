@@ -1,6 +1,6 @@
 # Tourguide
 
-Tourguide turns a Git branch, tag, or commit into an interactive codebase curriculum. It launches Codex through `codex exec`, reuses the user's existing subscription, publishes one complete module at a time, and teaches through short pages, demonstrations, and isolated exercises.
+Tourguide maintains living, evidence-backed, executable documentation for a Git branch, tag, or commit. Its data, API, component, compute, and code views become interactive playgrounds, while structured `codex exec` generation turns stable documentation subjects into task-shaped tours and isolated labs.
 
 Tourguide is local-first: source discovery, generated pages, progress, and runtime experiments stay on the developer's machine. There is no hosted repository service and no telemetry.
 
@@ -19,7 +19,7 @@ cd /path/to/repository
 tourguide
 ```
 
-Press **Start tour**. Tourguide uses `HEAD`, the default Codex model, and an inferred broad curriculum unless you open Advanced settings.
+Press **Explore codebase** to browse deterministic repository knowledge without an LLM call. Use **Update and probe** when you want Tourguide to fill unresolved meaning, probe runtime providers, and assess affected tours. Validated artifacts are reused until their evidence or capability contract changes. Press **Start tour** for a Codex-authored learning path. Standard generation reserves at most eleven Codex turns, including up to two cold documentation or runtime calls, unless you change the depth.
 
 ## Diagnostics
 
@@ -49,7 +49,7 @@ The shorter `npm install --global @nmhossain02/tourguide` and
 
 ## Development
 
-Requirements: Git, Node.js 22 or newer, Corepack for development, and a recent authenticated Codex CLI.
+Requirements: Git, Node.js 22.13 or newer, Corepack for development, and a recent authenticated Codex CLI.
 
 ```bash
 corepack pnpm install

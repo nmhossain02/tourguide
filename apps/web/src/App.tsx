@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { EvidenceRef, Progress } from "@tourguide/core";
+import type { EvidenceRef, Progress, ViewerTarget } from "@tourguide/core";
 import { api, type BootstrapPayload } from "./api";
 import {
   DiagnosticsModal,
@@ -17,6 +17,7 @@ import {
   TourContent,
 } from "./components/TourView";
 import { errorText, getOrderedPages, isGenerating, type GenerationInput } from "./tour";
+import { KnowledgeExplorer } from "./components/KnowledgeExplorer";
 
 const POLL_INTERVAL_MS = 1_000;
 const MAX_VISIBLE_EVENTS = 200;
@@ -30,7 +31,14 @@ export function App() {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [interactionIndex, setInteractionIndex] = useState(0);
   const [error, setError] = useState<string>();
+  const [viewerTarget, setViewerTarget] = useState<ViewerTarget | null>();
   const lastEventId = useRef(0);
+  const dataRef = useRef<BootstrapPayload | undefined>(undefined);
+  const progressWrites = useRef(Promise.resolve());
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   useEffect(() => {
     api.bootstrap()
@@ -83,32 +91,35 @@ export function App() {
   const module = page && tour?.modules.find((candidate) => candidate.id === page.moduleId);
   const track = module && tour?.tracks.find((candidate) => candidate.moduleIds.includes(module.id));
 
-  const updateProgress = useCallback(async (
+  const updateProgress = useCallback((
     id: string,
     patch: Partial<Progress["pages"][string]>,
   ) => {
-    if (!data) return;
-
-    const now = new Date().toISOString();
-    const currentPageProgress = data.progress.pages[id] ?? {
-      viewed: false,
-      demonstrated: false,
-      exerciseAttempted: false,
-      completed: false,
-      revisit: false,
-      updatedAt: now,
-    };
-    const progress: Progress = {
-      schemaVersion: 2,
-      pages: {
-        ...data.progress.pages,
-        [id]: { ...currentPageProgress, ...patch, updatedAt: now },
-      },
-    };
-
-    setData({ ...data, progress });
-    await api.progress(progress);
-  }, [data]);
+    progressWrites.current = progressWrites.current.then(async () => {
+      const current = dataRef.current;
+      if (!current) return;
+      const now = new Date().toISOString();
+      const currentPageProgress = current.progress.pages[id] ?? {
+        viewed: false, demonstrated: false, exerciseAttempted: false, verified: false,
+        completed: false, blocked: false, stale: false, revisit: false, updatedAt: now,
+      };
+      const pages = { ...current.progress.pages, [id]: { ...currentPageProgress, ...patch, updatedAt: now } };
+      const pageModule = current.tour?.modules.find((candidate) => candidate.pageIds.includes(id));
+      const progress: Progress = {
+        schemaVersion: 3,
+        pages,
+        modules: pageModule ? {
+          ...current.progress.modules,
+          [pageModule.id]: { completed: pageModule.pageIds.every((pageId) => pages[pageId]?.completed), updatedAt: now },
+        } : current.progress.modules,
+      };
+      const next = { ...current, progress };
+      dataRef.current = next;
+      setData((visible) => visible ? { ...visible, progress } : visible);
+      await api.progress(progress);
+    }).catch((reason) => setError(errorText(reason)));
+    return progressWrites.current;
+  }, []);
 
   useEffect(() => {
     if (page && !data?.progress.pages[page.id]?.viewed) {
@@ -157,12 +168,16 @@ export function App() {
   const diagnosticsModal = diagnosticsOpen
     ? <DiagnosticsModal onClose={() => setDiagnosticsOpen(false)} />
     : null;
+  const knowledgeExplorer = viewerTarget !== undefined
+    ? <KnowledgeExplorer {...(viewerTarget ? { initialTarget: viewerTarget } : {})} onClose={() => setViewerTarget(undefined)} />
+    : null;
 
   if (error) {
     return (
       <>
         <FatalScreen error={error} onDiagnostics={() => setDiagnosticsOpen(true)} />
         {diagnosticsModal}
+        {knowledgeExplorer}
       </>
     );
   }
@@ -173,6 +188,7 @@ export function App() {
     return (
       <>
         <main className="setup-screen">
+          <button className="explore-codebase" onClick={() => setViewerTarget(null)}>Explore codebase</button>
           <GenerationPanel
             data={data}
             onStart={startGeneration}
@@ -180,6 +196,7 @@ export function App() {
           />
         </main>
         {diagnosticsModal}
+        {knowledgeExplorer}
       </>
     );
   }
@@ -187,8 +204,9 @@ export function App() {
   if (!tour || !page || !module || !track) {
     return (
       <>
-        <GenerationScreen data={data} onDiagnostics={() => setDiagnosticsOpen(true)} />
+        <GenerationScreen data={data} onDiagnostics={() => setDiagnosticsOpen(true)} onExplore={() => setViewerTarget(null)} />
         {diagnosticsModal}
+        {knowledgeExplorer}
       </>
     );
   }
@@ -205,6 +223,7 @@ export function App() {
         onToggleRail={() => setRailOpen((open) => !open)}
         onDiagnostics={() => setDiagnosticsOpen(true)}
         onNewTour={() => setGenerateOpen(true)}
+        onExplore={() => setViewerTarget(null)}
       />
       {generating && (
         <GenerationBanner data={data} onCancel={() => { void api.cancelGeneration(); }} />
@@ -223,6 +242,7 @@ export function App() {
         onSelectPage={selectPage}
         onSelectInteraction={setInteractionIndex}
         onOpenEvidence={setEvidence}
+        onOpenKnowledge={(target) => setViewerTarget(target)}
         onUpdateProgress={updateProgress}
       />
       {generateOpen && (
@@ -238,6 +258,7 @@ export function App() {
         </div>
       )}
       {diagnosticsModal}
+      {knowledgeExplorer}
       {evidence && (
         <>
           <div className="drawer-backdrop" onClick={() => setEvidence(undefined)} />

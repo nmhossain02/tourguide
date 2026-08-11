@@ -2,20 +2,25 @@
   "name": "tourguide",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Interactive, agent-authored tours for unfamiliar codebases.",
   "license": "Apache-2.0",
   "packageManager": "pnpm@11.13.1",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "build": "corepack pnpm --filter @tourguide/web build && corepack pnpm --filter @nmhossain02/tourguide build",
     "dev": "corepack pnpm --filter @nmhossain02/tourguide dev",
     "typecheck": "corepack pnpm -r typecheck",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "test:watch": "vitest",
     "validate:plugin": "node scripts/validate-metadata.mjs plugin",
-    "validate": "corepack pnpm typecheck && corepack pnpm test && corepack pnpm build && corepack pnpm validate:plugin"
+    "validate": "corepack pnpm typecheck && corepack pnpm test && corepack pnpm build && corepack pnpm validate:plugin && corepack pnpm test:e2e"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "latest",
     "tsx": "latest",
     "typescript": "latest",

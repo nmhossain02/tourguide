@@ -10,22 +10,32 @@ import {
   GenerationJobSchema,
   TourSnapshotSchema,
   TourStore,
+  VerificationCheckSchema,
+  buildRepositoryKnowledge,
   contentHash,
   inspectRepositoryAt,
   readRevisionFile,
+  semanticBindingsForKnowledgeRefs,
   validateSnapshot,
   type CurriculumPlan,
   type GeneratedModule,
+  type GenerationDepth,
   type GenerationJob,
   type Interaction,
+  type LabEnvironment,
+  type LivingDocumentationSnapshot,
   type Page,
   type ProjectInventory,
   type RunRecipe,
+  type RepositoryKnowledgeSnapshot,
+  type RuntimeProviderArtifact,
   type TourSnapshot,
+  type VerificationCheck,
 } from "@tourguide/core";
 
 import { CodexExecRunner, type CodexUsage } from "./codex-exec.js";
 import { captureDiagnostic, redactDiagnosticText } from "./diagnostics.js";
+import { IntelligenceCoordinator } from "./intelligence.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_SOURCE_FILE_BYTES = 768 * 1024;
@@ -55,7 +65,7 @@ function excludedSource(path: string): boolean {
   );
 }
 
-async function createGenerationWorkspace(inventory: ProjectInventory, jobId: string): Promise<{ path: string; excluded: string[] }> {
+async function createGenerationWorkspace(inventory: ProjectInventory, jobId: string, knowledge: RepositoryKnowledgeSnapshot, documentation: LivingDocumentationSnapshot): Promise<{ path: string; excluded: string[]; filteredBytes: number }> {
   const path = join(inventory.root, ".tourguide", "cache", "generation", jobId, "repository");
   await mkdir(path, { recursive: true });
   const excluded: string[] = [];
@@ -94,18 +104,28 @@ async function createGenerationWorkspace(inventory: ProjectInventory, jobId: str
     "This is a disposable, filtered copy. Inspect it freely. Do not assume omitted files are absent from the real repository.",
     "",
   ].join("\n"), "utf8");
+  await writeFile(join(path, ".tourguide-knowledge.json"), `${JSON.stringify(knowledge, null, 2)}\n`, "utf8");
+  await writeFile(join(path, ".tourguide-documentation.json"), `${JSON.stringify(documentation, null, 2)}\n`, "utf8");
   await execFileAsync("git", ["init", "-q", path]);
   await execFileAsync("git", ["-C", path, "config", "user.name", "Tourguide"]);
   await execFileAsync("git", ["-C", path, "config", "user.email", "tourguide@localhost"]);
   await execFileAsync("git", ["-C", path, "add", "--all"]);
   await execFileAsync("git", ["-C", path, "commit", "-q", "-m", `Selected source ${inventory.head}`]);
-  return { path, excluded };
+  return { path, excluded, filteredBytes: total };
 }
 
-function planPrompt(inventory: ProjectInventory, goal: string, priorities: string[]): string {
+const DEPTH_LIMITS: Record<GenerationDepth, { modules: number; turns: number }> = {
+  quick: { modules: 2, turns: 5 },
+  standard: { modules: 4, turns: 9 },
+  deep: { modules: 8, turns: 17 },
+};
+
+function planPrompt(inventory: ProjectInventory, goal: string, priorities: string[], depth: GenerationDepth): string {
   return `You are the curriculum architect for an interactive tour of this software package.
 
 Inspect the repository thoroughly. Build a curriculum with the pacing of go.dev/tour: small atomic pages, but enough adjacent pages to develop real depth. This is a software package, so ground every module in the selected repository and teach authentic paths through code, configuration, tests, runtime behavior, and delivery.
+
+The complete deterministic repository catalog is available at .tourguide-knowledge.json. The living, evidence-backed documentation graph is available at .tourguide-documentation.json and is the semantic backbone for subjects, scenarios, runtime profiles, and unresolved inference requests. Read repository documentation before source when it exists. Use hard catalog facts as evidence and the documentation graph for meaning. Reference catalog items by their exact catalog, ID, and content hash instead of copying their facts into the tour.
 
 Learner goal:
 ${goal}
@@ -117,6 +137,9 @@ Selected source:
 - repository: ${inventory.name}
 - ref: ${inventory.ref}
 - commit: ${inventory.head}
+- generation depth: ${depth}
+- maximum modules: ${DEPTH_LIMITS[depth].modules}
+- maximum Codex turns including one optional repair per module: ${DEPTH_LIMITS[depth].turns}
 
 Requirements:
 - Produce one core track at priority 0 plus one selected, goal-driven track when the goal warrants it.
@@ -128,8 +151,28 @@ Requirements:
 - Page IDs, module IDs, and track IDs must be globally unique, stable kebab-case identifiers.
 - Track moduleIds and each module trackId must agree.
 - Keep the scope achievable: broad core onboarding plus the single most relevant goal-driven path.
+- Include at least one representative feature journey that links the applicable component, API, logic, data, and documentation catalog items. Record a specific gap for layers that are absent.
+- Every planned module and page lists the exact knowledge references it depends on.
+- Prefer component, http, database, and function viewer intents when the matching indexed item exists.
+- Plan one verified patch exercise in the core track when a tracked editable file and local verification command exist. Otherwise record a specific blocked gap and an interactivity-readiness recommendation.
 
 Return only the structured curriculum plan requested by the output schema.`;
+}
+
+function limitPlan(input: CurriculumPlan, depth: GenerationDepth): CurriculumPlan {
+  const modules = input.modules.slice(0, DEPTH_LIMITS[depth].modules);
+  const moduleIds = new Set(modules.map((module) => module.id));
+  const usedTrackIds = new Set(modules.map((module) => module.trackId));
+  const tracks = input.tracks
+    .filter((track) => track.kind === "core" || usedTrackIds.has(track.id))
+    .map((track) => ({ ...track, moduleIds: track.moduleIds.filter((id) => moduleIds.has(id)) }));
+  const coverage = input.coverage.map((entry) => {
+    const retained = entry.moduleIds.filter((id) => moduleIds.has(id));
+    return entry.status === "covered" && retained.length === 0
+      ? { ...entry, status: "omitted" as const, moduleIds: [], reason: `The ${depth} depth limit deferred this capability.` }
+      : { ...entry, moduleIds: retained };
+  });
+  return CurriculumPlanSchema.parse({ ...input, tracks, modules, coverage });
 }
 
 function modulePrompt(plan: CurriculumPlan, planned: CurriculumPlan["modules"][number], inventory: ProjectInventory): string {
@@ -160,9 +203,13 @@ Teaching requirements:
 - Data interactions declare columns once and encode each row as a same-length array of cell strings in that column order.
 - Demos ask the learner to predict, vary, run, and observe meaningful behavior.
 - Exercises have an observable task, progressive hints, reset behavior, and verification when feasible.
+- JSON verification values are JSON-encoded strings in the structured response. For example, use {\"ok\":true} as the string value for a json-subset expectation.
 - Patch exercises may edit only explicitly listed tracked text files and their recipe writes must remain inside those paths.
 - Use a safe trace, diagnose, observe, or design exercise when a patch would need secrets, network, containers, or external systems.
 - Do not invent runtime output. Record blocked or unavailable experiments honestly in the narrative and evidence.
+- Preserve the planned knowledge references and use component, http, database, or function interactions with exact ViewerTarget values when the catalog supports them.
+- Prefer local documentation references, then indexed source references. External URLs are optional and must remain explicit external references.
+- Ask for a prediction before a demonstration, expose at least one meaningful input, and state expected versus observed behavior.
 
 Return only the structured module requested by the output schema.`;
 }
@@ -181,6 +228,7 @@ Repair requirements:
 - Every concept, walkthrough, demo, and exercise page must have a source or command interaction, or path-backed source evidence that can ground it.
 - Source and evidence ranges must be ascending and within the referenced file.
 - Command env values use name/value entry arrays, and data table rows use cell arrays matching their declared columns.
+- JSON verification values must be valid JSON encoded as strings.
 
 Return only the complete structured module requested by the output schema.`;
 }
@@ -193,7 +241,7 @@ function normalizedTracks(plan: CurriculumPlan) {
   return plan.tracks.map((track) => ({ ...track, moduleIds: byTrack.get(track.id) ?? [] }));
 }
 
-function draftFromPlan(plan: CurriculumPlan, inventory: ProjectInventory, id: string): TourSnapshot {
+function draftFromPlan(plan: CurriculumPlan, inventory: ProjectInventory, documentation: LivingDocumentationSnapshot, id: string): TourSnapshot {
   const plannedPageIds = new Set<string>();
   const plannedModuleIds = new Set(plan.modules.map((module) => module.id));
   for (const module of plan.modules) {
@@ -220,14 +268,14 @@ function draftFromPlan(plan: CurriculumPlan, inventory: ProjectInventory, id: st
     if (!knownTracks.has(module.trackId)) throw new Error(`Module ${module.id} references unknown track ${module.trackId}.`);
   }
   return TourSnapshotSchema.parse({
-    schemaVersion: 2,
+    schemaVersion: 3,
     id,
     projectName: plan.projectName,
     repositoryRoot: inventory.root,
     anchor: { ref: inventory.ref, commit: inventory.head },
     generatedAt: new Date().toISOString(),
     generator: "tourguide-codex-exec",
-    promptVersion: 2,
+    promptVersion: 3,
     status: "draft",
     tracks,
     modules: plan.modules.map((module) => ({
@@ -239,13 +287,107 @@ function draftFromPlan(plan: CurriculumPlan, inventory: ProjectInventory, id: st
       prerequisites: module.prerequisites.filter((prerequisite) => plannedModuleIds.has(prerequisite)),
       pageIds: module.pages.map((page) => page.id),
       surfaces: module.surfaces.filter((path) => inventory.trackedFiles.includes(path)),
+      knowledgeRefs: module.knowledgeRefs,
+      documentationBindings: semanticBindingsForKnowledgeRefs(module.knowledgeRefs),
       gaps: module.gaps,
       status: "planned",
     })),
     pages: [],
     coverage: plan.coverage,
     dependencies: {},
+    knowledgeSnapshotId: `knowledge:${inventory.head}:1`,
+    documentationSnapshotId: documentation.id,
+    knowledgeRefs: plan.knowledgeRefs,
+    featureJourneys: plan.featureJourneys,
+    labEnvironments: [],
   });
+}
+
+function packageCommand(inventory: ProjectInventory, script: string): { command: string; args: string[] } {
+  if (inventory.trackedFiles.includes("pnpm-lock.yaml")) return { command: "corepack", args: ["pnpm", "run", script] };
+  if (inventory.trackedFiles.includes("yarn.lock")) return { command: "corepack", args: ["yarn", script] };
+  return { command: "npm", args: ["run", script] };
+}
+
+function inferLabEnvironment(
+  snapshot: TourSnapshot,
+  moduleId: string,
+  inventory: ProjectInventory,
+  knowledge: RepositoryKnowledgeSnapshot,
+  documentation: LivingDocumentationSnapshot,
+  runtimeProviders: RuntimeProviderArtifact[],
+): LabEnvironment {
+  const module = snapshot.modules.find((candidate) => candidate.id === moduleId)!;
+  const pages = module.pageIds.flatMap((id) => snapshot.pages.filter((page) => page.id === id));
+  const interactionTypes = new Set(pages.flatMap((page) => page.interactions.map((interaction) => interaction.type)));
+  const adapterIds = [
+    ...(interactionTypes.has("source") ? ["source"] : []),
+    ...(interactionTypes.has("command") ? ["command"] : []),
+    ...(interactionTypes.has("component") ? ["react"] : []),
+    ...(interactionTypes.has("function") ? ["function-js"] : []),
+    ...(interactionTypes.has("http") ? ["http"] : []),
+    ...(interactionTypes.has("database") ? ["sqlite"] : []),
+  ];
+  const runtimeDomains = new Set([
+    ...(interactionTypes.has("component") ? ["component-library"] : []),
+    ...(interactionTypes.has("function") ? ["compute"] : []),
+    ...(interactionTypes.has("http") ? ["api"] : []),
+    ...(interactionTypes.has("database") ? ["data-model"] : []),
+  ]);
+  const preparationRecipes: LabEnvironment["preparationRecipes"] = [];
+  const services: LabEnvironment["services"] = [];
+  if (interactionTypes.has("database")) {
+    const schemaPath = knowledge.catalogs.dataModel.find((item) => item.kind === "table" && item.path?.endsWith(".sql"))?.path;
+    if (schemaPath) preparationRecipes.push({
+      id: "prepare-sqlite", title: "Prepare isolated SQLite database", command: process.execPath,
+      args: ["-e", "const{readFileSync}=require('node:fs');const{DatabaseSync}=require('node:sqlite');const db=new DatabaseSync(process.argv[2]);db.exec(readFileSync(process.argv[1],'utf8'));db.close()", schemaPath, "app.db"],
+      cwd: ".", lifecycle: "oneshot", timeoutMs: 30_000, env: {}, inputs: [],
+      capabilities: { writes: ["app.db"], network: "none", secrets: [], containers: false, externalSystems: [] },
+      expected: `The schema in ${schemaPath} initializes app.db inside the lab.`,
+    });
+  }
+  if (interactionTypes.has("component") && inventory.commands.storybook) {
+    const runner = packageCommand(inventory, "storybook");
+    services.push({
+      id: "storybook", title: "Repository Storybook", portEnv: "PORT", healthUrl: "http://127.0.0.1:{{port}}/index.json", healthTimeoutMs: 60_000,
+      recipe: {
+        id: "storybook", title: "Repository Storybook", command: runner.command,
+        args: [...runner.args, "--", "--host", "127.0.0.1", "--port", "{{port}}"], cwd: ".", lifecycle: "service", timeoutMs: 900_000,
+        env: {}, inputs: [], capabilities: { writes: [], network: "loopback", secrets: [], containers: false, externalSystems: [] },
+        expected: "The repository Storybook serves its indexed stories on an allocated loopback port.",
+      },
+    });
+  }
+  if (interactionTypes.has("http") && inventory.commands.dev && /(?:server|api|backend|node)/i.test(inventory.commands.dev)) {
+    const runner = packageCommand(inventory, "dev");
+    const healthRoute = knowledge.catalogs.api.find((item) => item.route === "/health")?.route;
+    services.push({
+      id: "api", title: "Repository API", portEnv: "PORT", ...(healthRoute ? { healthUrl: `http://127.0.0.1:{{port}}${healthRoute}` } : {}), healthTimeoutMs: 60_000,
+      recipe: {
+        id: "api", title: "Repository API", command: runner.command, args: runner.args, cwd: ".", lifecycle: "service", timeoutMs: 900_000,
+        env: { DATABASE_PATH: "app.db" }, inputs: [], capabilities: { writes: ["app.db"], network: "loopback", secrets: [], containers: false, externalSystems: [] },
+        expected: "The repository API listens on the allocated loopback port.",
+      },
+    });
+  }
+  const mockPaths = inventory.trackedFiles.filter((path) => /(^|\/)(__mocks__|mocks?|fixtures?|stubs?)(\/|$)/i.test(path));
+  const dependencies = mockPaths.slice(0, 8).map((path) => ({ id: `mock-${contentHash(path).slice(0, 10)}`, label: path, mode: "repository-mock" as const, reason: "Repository-owned test double detected by path." }));
+  const needsService = interactionTypes.has("component") || interactionTypes.has("http");
+  const missingService = (interactionTypes.has("component") && !services.some((service) => service.id === "storybook"))
+    || (interactionTypes.has("http") && !services.some((service) => service.id === "api"));
+  return {
+    id: `lab-${moduleId}`,
+    moduleId,
+    title: `${module.title} lab`,
+    adapterIds,
+    runtimeProfileIds: documentation.runtimeProfiles.filter((profile) => runtimeDomains.has(profile.domain)).map((profile) => profile.id),
+    runtimeProviders: runtimeProviders.filter((provider) => runtimeDomains.has(provider.domain) && provider.validation.status === "pass"),
+    editablePaths: [...new Set(pages.flatMap((page) => page.exercise?.allowedPaths ?? []))],
+    preparationRecipes,
+    services,
+    dependencies,
+    readiness: needsService && missingService ? "needs-setup" : "ready",
+  };
 }
 
 async function normalizeModule(
@@ -337,7 +479,7 @@ async function normalizeModule(
     ] : interactions;
     let exercise: Page["exercise"];
     if (page.exercise) {
-      const { verificationRecipe, formatRecipe, ...rest } = page.exercise;
+      const { verificationRecipe, formatRecipe, verificationChecks, ...rest } = page.exercise;
       for (const path of page.exercise.allowedPaths) {
         if (!tracked.has(path) || excluded.has(path)) {
           throw new Error(`Exercise ${id} allows unavailable path ${path}.`);
@@ -355,6 +497,7 @@ async function normalizeModule(
         ...rest,
         ...(verificationRecipe ? { verificationRecipe: normalizeRecipe(verificationRecipe) } : {}),
         ...(formatRecipe ? { formatRecipe: normalizeRecipe(formatRecipe) } : {}),
+        ...(verificationChecks ? { verificationChecks: normalizeVerificationChecks(verificationChecks) } : {}),
       };
     }
     const { evidence: _generatedEvidence, interactions: _generatedInteractions, exercise: _generatedExercise, ...rest } = page;
@@ -363,6 +506,7 @@ async function normalizeModule(
       moduleId: planned.id,
       status: "ready" as const,
       evidence,
+      documentationBindings: semanticBindingsForKnowledgeRefs(page.knowledgeRefs),
       interactions: groundedInteractions,
       ...(exercise ? { exercise } : {}),
     };
@@ -386,6 +530,32 @@ function removeUnknownPrerequisitesFromPages(pages: Page[], plan: CurriculumPlan
 }
 
 type GeneratedRecipe = Omit<RunRecipe, "env"> & { env: Array<{ name: string; value: string }> };
+
+function parseVerificationJson(value: string, checkType: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new Error(`${checkType} verification contains invalid JSON.`);
+  }
+}
+
+export function normalizeVerificationChecks(
+  checks: NonNullable<NonNullable<GeneratedModule["pages"][number]["exercise"]>["verificationChecks"]> | undefined,
+): VerificationCheck[] | undefined {
+  if (!checks) return undefined;
+  return checks.map((check) => {
+    if (check.type === "json-subset") {
+      return VerificationCheckSchema.parse({ ...check, expected: parseVerificationJson(check.expected, check.type) });
+    }
+    if (check.type === "http" && check.bodySubset !== undefined) {
+      return VerificationCheckSchema.parse({ ...check, bodySubset: parseVerificationJson(check.bodySubset, check.type) });
+    }
+    if (check.type === "database-rows") {
+      return VerificationCheckSchema.parse({ ...check, expected: parseVerificationJson(check.expected, check.type) });
+    }
+    return VerificationCheckSchema.parse(check);
+  });
+}
 
 function normalizeRecipe(recipe: GeneratedRecipe): RunRecipe {
   return {
@@ -413,6 +583,7 @@ export interface StartGenerationInput {
   goal: string;
   priorities?: string[];
   model?: string;
+  depth?: GenerationDepth;
 }
 
 export class TourGenerator {
@@ -430,6 +601,7 @@ export class TourGenerator {
     const status = await this.runner.status();
     if (status.status !== "ready") throw new Error(status.message);
     const now = new Date().toISOString();
+    const depth = input.depth ?? "standard";
     const job = GenerationJobSchema.parse({
       id: randomUUID(),
       action: "create",
@@ -439,6 +611,8 @@ export class TourGenerator {
       goal: input.goal,
       priorities: input.priorities ?? [],
       ...(input.model ? { model: input.model } : {}),
+      depth,
+      maximumCodexTurns: DEPTH_LIMITS[depth].turns + 2,
       codexVersion: status.version,
       message: "Preparing a filtered copy of the selected commit.",
       startedAt: now,
@@ -487,8 +661,25 @@ export class TourGenerator {
     let snapshot: TourSnapshot | undefined;
     try {
       job = await this.save(job, { status: "running", phase: "preparing" });
-      const prepared = await createGenerationWorkspace(inventory, job.id);
+      const knowledge = await buildRepositoryKnowledge(inventory);
+      await this.store.saveKnowledge(knowledge);
+      const previousTour = await this.store.current();
+      const previousDocumentation = previousTour?.documentationSnapshotId
+        ? await this.store.documentation(previousTour.documentationSnapshotId)
+        : undefined;
+      const intelligence = new IntelligenceCoordinator(this.root, this.store, this.runner, job.model);
+      const reconciled = await intelligence.reconcileDocumentation(knowledge, previousDocumentation, signal);
+      const resolvedRuntimes = await intelligence.resolveRuntimeProviders(reconciled.documentation, inventory, signal);
+      const documentation = resolvedRuntimes.documentation;
+      job = await this.save(job, {
+        usage: addUsage(addUsage(job.usage, reconciled.stats.usage), resolvedRuntimes.stats.usage),
+      });
+      const prepared = await createGenerationWorkspace(inventory, job.id, knowledge, documentation);
       workspace = prepared.path;
+      job = await this.save(job, {
+        indexedSourceBytes: knowledge.files.reduce((total, file) => total + file.size, 0),
+        filteredSourceBytes: prepared.filteredBytes,
+      });
       const generationInventory = { ...inventory, excludedFiles: prepared.excluded };
       await this.event(job, "status", `Prepared ${inventory.trackedFileCount - prepared.excluded.length} source files; omitted ${prepared.excluded.length} sensitive, binary, or oversized files.`);
 
@@ -496,27 +687,28 @@ export class TourGenerator {
       await this.event(job, "status", job.message);
       const planResult = await this.runner.run({
         cwd: workspace,
-        prompt: planPrompt(generationInventory, job.goal, job.priorities),
+        prompt: planPrompt(generationInventory, job.goal, job.priorities, job.depth),
         schema: CurriculumPlanSchema,
         ...(job.model ? { model: job.model } : {}),
         signal,
       });
-      await this.store.saveGenerationArtifact(job.id, "plan", planResult.value);
-      snapshot = draftFromPlan(planResult.value, generationInventory, randomUUID());
-      const planReport = await validateSnapshot(snapshot, this.root, { partial: true });
+      const plan = limitPlan(planResult.value, job.depth);
+      await this.store.saveGenerationArtifact(job.id, "plan", plan);
+      snapshot = draftFromPlan(plan, generationInventory, documentation, randomUUID());
+      const planReport = await validateSnapshot(snapshot, this.root, { partial: true, knowledge, documentation });
       if (!planReport.valid) throw new Error(`Curriculum plan failed validation:\n${planReport.errors.join("\n")}`);
       await this.store.saveDraft(snapshot);
       job = await this.save(job, {
         threadId: planResult.threadId,
         snapshotId: snapshot.id,
-        plannedModuleIds: planResult.value.modules.map((module) => module.id),
+        plannedModuleIds: plan.modules.map((module) => module.id),
         usage: addUsage(job.usage, planResult.usage),
         phase: "drafting",
-        message: `Planned ${planResult.value.modules.length} modules. Drafting the first module.`,
+        message: `Planned ${plan.modules.length} modules. Drafting the first module.`,
       });
       await this.event(job, "status", job.message);
 
-      for (const planned of planResult.value.modules) {
+      for (const planned of plan.modules) {
         if (signal.aborted) throw new Error("Tour generation was cancelled.");
         job = await this.save(job, {
           phase: "drafting",
@@ -532,7 +724,7 @@ export class TourGenerator {
           const generated = await this.runner.run({
             cwd: workspace,
             prompt: attempt === 0
-              ? modulePrompt(planResult.value, planned, generationInventory)
+              ? modulePrompt(plan, planned, generationInventory)
               : moduleRepairPrompt(planned, repairReason ?? "The module failed validation."),
             schema: GeneratedModuleSchema,
             ...(job.model ? { model: job.model } : {}),
@@ -551,7 +743,7 @@ export class TourGenerator {
           try {
             const pages = removeUnknownPrerequisitesFromPages(
               await normalizeModule(generated.value, planned, generationInventory),
-              planResult.value,
+              plan,
             );
             const replacement = new Set(pages.map((page) => page.id));
             const allPages = [...baseSnapshot.pages.filter((page) => !replacement.has(page.id)), ...pages];
@@ -569,7 +761,11 @@ export class TourGenerator {
               dependencies: Object.fromEntries(allPages.map((page) => [page.id, page.prerequisites])),
               status: "partial",
             });
-            const report = await validateSnapshot(next, this.root, { partial: true });
+            next.labEnvironments = [
+              ...next.labEnvironments.filter((environment) => environment.moduleId !== planned.id),
+              inferLabEnvironment(next, planned.id, generationInventory, knowledge, documentation, resolvedRuntimes.artifacts),
+            ];
+            const report = await validateSnapshot(next, this.root, { partial: true, knowledge, documentation });
             if (!report.valid) throw new Error(`Generated module failed validation:\n${report.errors.join("\n")}`);
             candidate = next;
             break;
@@ -595,10 +791,14 @@ export class TourGenerator {
 
       job = await this.save(job, { status: "running", phase: "validating", message: "Validating the complete tour." });
       await this.event(job, "status", job.message);
-      const report = await validateSnapshot(snapshot, this.root);
+      const report = await validateSnapshot(snapshot, this.root, { knowledge, documentation });
       if (!report.valid) throw new Error(`Tour failed publication validation:\n${report.errors.join("\n")}`);
       job = await this.save(job, { phase: "publishing", message: "Publishing the complete tour." });
       await this.store.publish(snapshot);
+      if (workspace) {
+        await rm(join(inventory.root, ".tourguide", "cache", "generation", job.id), { recursive: true, force: true });
+        workspace = undefined;
+      }
       job = await this.save(job, { status: "complete", phase: "complete", message: "Tour generation is complete." });
       await this.event(job, "complete", job.message);
     } catch (error) {

@@ -1,13 +1,31 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { Code2, Play, RotateCcw } from "lucide-react";
+import { CheckCircle2, Code2, Copy, Download, GitBranch, Play, RotateCcw, XCircle } from "lucide-react";
 
-import type { ExerciseFile, ExerciseSession, Page, RunResult } from "@tourguide/core";
+import type { LabFile, LabSession, Page, VerificationResult } from "@tourguide/core";
 import { api } from "../api";
 import { editorLanguageForPath, errorMessage } from "../tour";
 
-function ResultOutput({ result }: { result: RunResult | undefined }) {
-  if (!result) return null;
+interface BrowserLabState {
+  session?: LabSession;
+  files: LabFile[];
+  activePath?: string;
+  content: string;
+  patch: string;
+  dirtyBuffers: DirtyBuffer[];
+}
+
+interface DirtyBuffer {
+  path: string;
+  value: string;
+  version: number;
+}
+
+const browserLabs = new Map<string, BrowserLabState>();
+
+function ResultOutput({ verification }: { verification: VerificationResult | undefined }) {
+  if (!verification) return null;
+  const result = verification.result;
 
   const output = [
     result.stdout,
@@ -19,22 +37,64 @@ function ResultOutput({ result }: { result: RunResult | undefined }) {
       : "",
   ].join("");
 
-  return <pre className="run-output">{output}</pre>;
+  return <section className={`verification-result ${verification.status}`}>
+    <header>{verification.status === "pass" ? <CheckCircle2 /> : <XCircle />}<div><strong>{verification.status}</strong><span>Expected: {verification.expected}</span><span>Observed: {verification.observed}</span></div></header>
+    <details><summary>Raw command output</summary><pre className="run-output">{output}</pre></details>
+  </section>;
 }
 
-export function ExerciseView({ page, onAttempt }: { page: Page; onAttempt(): void }) {
+export function ExerciseView({ page, onProgress }: { page: Page; onProgress(patch: { exerciseAttempted?: boolean; verified?: boolean }): void }) {
   const exercise = page.exercise!;
-  const [session, setSession] = useState<ExerciseSession>();
-  const [files, setFiles] = useState<ExerciseFile[]>([]);
-  const [activePath, setActivePath] = useState<string>();
-  const [content, setContent] = useState("");
-  const [result, setResult] = useState<RunResult>();
-  const [patch, setPatch] = useState("");
+  const cached = browserLabs.get(page.moduleId);
+  const [session, setSession] = useState<LabSession | undefined>(cached?.session);
+  const [files, setFiles] = useState<LabFile[]>(cached?.files ?? []);
+  const [activePath, setActivePath] = useState<string | undefined>(cached?.activePath);
+  const [content, setContent] = useState(cached?.content ?? "");
+  const [verification, setVerification] = useState<VerificationResult>();
+  const [patch, setPatch] = useState(cached?.patch ?? "");
   const [hintCount, setHintCount] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const dirtyBuffers = useRef(new Map((cached?.dirtyBuffers ?? []).map((buffer) => [buffer.path, buffer])));
+  const nextBufferVersion = useRef(Math.max(0, ...(cached?.dirtyBuffers ?? []).map((buffer) => buffer.version)) + 1);
+  const saveWrites = useRef(Promise.resolve());
 
-  const installFiles = (nextFiles: ExerciseFile[]) => {
+  const queueSave = (sessionId: string, path: string, value: string) => {
+    const write = saveWrites.current.catch(() => undefined).then(() => api.saveExerciseFile(sessionId, path, value)).then(() => undefined);
+    saveWrites.current = write.catch(() => undefined);
+    return write;
+  };
+
+  const persistBuffer = async (sessionId: string, buffer: DirtyBuffer) => {
+    await queueSave(sessionId, buffer.path, buffer.value);
+    if (dirtyBuffers.current.get(buffer.path)?.version === buffer.version) {
+      dirtyBuffers.current.delete(buffer.path);
+    }
+  };
+
+  useEffect(() => {
+    browserLabs.set(page.moduleId, {
+      ...(session ? { session } : {}),
+      files,
+      ...(activePath ? { activePath } : {}),
+      content,
+      patch,
+      dirtyBuffers: [...dirtyBuffers.current.values()],
+    });
+  }, [page.moduleId, session, files, activePath, content, patch]);
+
+  useEffect(() => {
+    if (!session || !activePath) return;
+    const buffer = dirtyBuffers.current.get(activePath);
+    if (!buffer) return;
+    const timer = window.setTimeout(() => {
+      void persistBuffer(session.id, buffer).catch((reason) => setError(errorMessage(reason)));
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [session?.id, activePath, content]);
+
+  const installFiles = (nextFiles: LabFile[]) => {
+    dirtyBuffers.current.clear();
     setFiles(nextFiles);
     const selectedFile = nextFiles.find((file) => file.path === activePath) ?? nextFiles[0];
     setActivePath(selectedFile?.path);
@@ -48,7 +108,7 @@ export function ExerciseView({ page, onAttempt }: { page: Page; onAttempt(): voi
       const created = await api.createExercise(page.id);
       setSession(created.session);
       installFiles(created.files);
-      onAttempt();
+      onProgress({ exerciseAttempted: true });
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -57,12 +117,11 @@ export function ExerciseView({ page, onAttempt }: { page: Page; onAttempt(): voi
   };
 
   const save = async () => {
-    if (!session || !activePath) return;
-
-    await api.saveExerciseFile(session.id, activePath, content);
-    setFiles((current) => current.map((file) => (
-      file.path === activePath ? { ...file, content } : file
-    )));
+    if (!session) return;
+    while (dirtyBuffers.current.size) {
+      const pending = [...dirtyBuffers.current.values()];
+      for (const buffer of pending) await persistBuffer(session.id, buffer);
+    }
   };
 
   const run = async (action: "verify" | "format") => {
@@ -72,11 +131,13 @@ export function ExerciseView({ page, onAttempt }: { page: Page; onAttempt(): voi
     setError(undefined);
     try {
       await save();
-      setResult(await api.runExercise(session.id, page.id, action));
+      const nextVerification = await api.runExercise(session.id, page.id, action);
+      setVerification(nextVerification);
+      const passed = action === "verify" && nextVerification.status === "pass";
       if (action === "format") {
         installFiles((await api.exerciseFiles(session.id)).files);
       }
-      onAttempt();
+      onProgress({ exerciseAttempted: true, ...(passed ? { verified: true } : {}) });
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -92,7 +153,7 @@ export function ExerciseView({ page, onAttempt }: { page: Page; onAttempt(): voi
       const value = await api.resetExercise(session.id);
       setSession(value.session);
       installFiles(value.files);
-      setResult(undefined);
+      setVerification(undefined);
       setPatch("");
     } finally {
       setBusy(false);
@@ -106,14 +167,45 @@ export function ExerciseView({ page, onAttempt }: { page: Page; onAttempt(): voi
     setPatch((await api.exercisePatch(session.id)).patch);
   };
 
-  const selectFile = (file: ExerciseFile) => {
+  const keepOnBranch = async () => {
+    if (!session) return;
+    await save();
+    setSession(await api.retainLab(session.id, page.id));
+  };
+
+  const openEditor = async () => {
+    if (!session) return;
+    try { await api.openEditor(session.id, activePath); } catch (reason) { setError(errorMessage(reason)); }
+  };
+
+  const copyPatch = async () => {
+    await navigator.clipboard.writeText(patch);
+  };
+
+  const downloadPatch = () => {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([patch], { type: "text/x-diff" }));
+    link.download = `${page.id}.patch`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const selectFile = (file: LabFile) => {
     if (activePath) {
-      setFiles((current) => current.map((item) => (
-        item.path === activePath ? { ...item, content } : item
-      )));
+      const buffer = dirtyBuffers.current.get(activePath);
+      if (session && buffer) {
+        void persistBuffer(session.id, buffer).catch((reason) => setError(errorMessage(reason)));
+      }
     }
     setActivePath(file.path);
-    setContent(file.content);
+    setContent(dirtyBuffers.current.get(file.path)?.value ?? file.content);
+  };
+
+  const changeContent = (value: string) => {
+    setContent(value);
+    if (!activePath) return;
+    dirtyBuffers.current.set(activePath, { path: activePath, value, version: nextBufferVersion.current++ });
+    setFiles((current) => current.map((file) => file.path === activePath ? { ...file, content: value } : file));
   };
 
   return (
@@ -128,7 +220,9 @@ export function ExerciseView({ page, onAttempt }: { page: Page; onAttempt(): voi
                 <Play size={14} /> Verify
               </button>
             )}
-            <button onClick={reset} disabled={busy}><RotateCcw size={14} /> Reset</button>
+            {session.status !== "retained" && <button onClick={reset} disabled={busy}><RotateCcw size={14} /> Reset</button>}
+            {session.status !== "retained" && <button onClick={keepOnBranch} disabled={busy}><GitBranch size={14} /> Keep on branch</button>}
+            <button onClick={openEditor} disabled={busy}><Code2 size={14} /> Open editor</button>
           </div>
         )}
       </div>
@@ -161,7 +255,7 @@ export function ExerciseView({ page, onAttempt }: { page: Page; onAttempt(): voi
                 height="360px"
                 language={editorLanguageForPath(activePath ?? "")}
                 value={content}
-                onChange={(value) => setContent(value ?? "")}
+                onChange={(value) => changeContent(value ?? "")}
                 theme="vs-dark"
                 onMount={(editor) => editor.getDomNode()?.querySelector("textarea")?.setAttribute("name", "exercise-editor")}
                 options={{
@@ -178,14 +272,16 @@ export function ExerciseView({ page, onAttempt }: { page: Page; onAttempt(): voi
               <button onClick={() => setHintCount((current) => current + 1)}>Reveal hint {hintCount + 1}</button>
             )}
             {files.length > 0 && <button onClick={exportPatch}>Export patch</button>}
+            {session.retainedBranch && <span className="retained-branch"><GitBranch size={13} /> Kept on {session.retainedBranch}</span>}
           </div>
           {exercise.hints.slice(0, hintCount).map((hint, index) => (
             <p className="hint" key={hint}><strong>Hint {index + 1}:</strong> {hint}</p>
           ))}
-          <ResultOutput result={result} />
+          <ResultOutput verification={verification} />
           {patch && (
             <div className="patch-output">
               <strong>Patch to copy or save</strong>
+              <div className="patch-actions"><button onClick={copyPatch}><Copy size={13} /> Copy</button><button onClick={downloadPatch}><Download size={13} /> Download</button></div>
               <pre>{patch || "No changes yet."}</pre>
             </div>
           )}

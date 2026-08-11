@@ -1,6 +1,8 @@
 node_modules/
 .pnpm-store/
 coverage/
+test-results/
+playwright-report/
 *.log
 *.tsbuildinfo
 .DS_Store

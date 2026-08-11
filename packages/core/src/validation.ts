@@ -1,5 +1,7 @@
 import { contentHash, readRevisionFile } from "./git.js";
-import type { Page, TourSnapshot } from "./schema.js";
+import { allKnowledgeItems } from "./knowledge.js";
+import { resolveSemanticBinding } from "./documentation.js";
+import type { KnowledgeRef, LivingDocumentationSnapshot, Page, RepositoryKnowledgeSnapshot, SemanticBinding, TourSnapshot } from "./schema.js";
 
 export interface ValidationReport {
   valid: boolean;
@@ -63,10 +65,55 @@ function validateLineRange(
 export async function validateSnapshot(
   snapshot: TourSnapshot,
   root: string,
-  options: { partial?: boolean } = {},
+  options: { partial?: boolean; knowledge?: RepositoryKnowledgeSnapshot; documentation?: LivingDocumentationSnapshot } = {},
 ): Promise<ValidationReport> {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const knowledgeItems = options.knowledge ? new Map(allKnowledgeItems(options.knowledge).map((item) => [item.id, item])) : undefined;
+  if (!options.knowledge) {
+    const message = `Tour knowledge snapshot ${snapshot.knowledgeSnapshotId} was not available for validation.`;
+    (options.partial ? warnings : errors).push(message);
+  }
+  if (options.knowledge && options.knowledge.id !== snapshot.knowledgeSnapshotId) {
+    errors.push(`Tour knowledge snapshot ${snapshot.knowledgeSnapshotId} does not match ${options.knowledge.id}.`);
+  }
+  if (snapshot.documentationSnapshotId && options.documentation && options.documentation.id !== snapshot.documentationSnapshotId) {
+    errors.push(`Tour documentation snapshot ${snapshot.documentationSnapshotId} does not match ${options.documentation.id}.`);
+  } else if (snapshot.documentationSnapshotId && !options.documentation) {
+    const message = `Tour documentation snapshot ${snapshot.documentationSnapshotId} was not available for validation.`;
+    (options.partial ? warnings : errors).push(message);
+  }
+  const validateKnowledgeRef = (reference: KnowledgeRef, owner: string) => {
+    if (!knowledgeItems) {
+      if (options.partial) warnings.push(`${owner} has a knowledge reference that was not checked against a catalog.`);
+      return;
+    }
+    const item = knowledgeItems.get(reference.itemId);
+    if (!item || item.catalog !== reference.catalog) errors.push(`${owner} references missing ${reference.catalog} item ${reference.itemId}.`);
+    else if (item.contentHash !== reference.contentHash) errors.push(`${owner} has a stale content hash for ${reference.itemId}.`);
+  };
+  const validateDocumentationBinding = (binding: SemanticBinding, owner: string) => {
+    if (!options.documentation) {
+      if (options.partial) warnings.push(`${owner} has a semantic documentation binding that was not resolved.`);
+      return;
+    }
+    const resolution = resolveSemanticBinding(options.documentation, binding);
+    if (resolution.status !== "resolved") errors.push(`${owner} has an unresolved semantic binding: ${resolution.reason}`);
+  };
+  for (const reference of snapshot.knowledgeRefs) validateKnowledgeRef(reference, "Tour");
+  for (const module of snapshot.modules) for (const reference of module.knowledgeRefs) validateKnowledgeRef(reference, `Module ${module.id}`);
+  for (const page of snapshot.pages) for (const reference of page.knowledgeRefs) validateKnowledgeRef(reference, `Page ${page.id}`);
+  for (const module of snapshot.modules) for (const binding of module.documentationBindings) validateDocumentationBinding(binding, `Module ${module.id}`);
+  for (const page of snapshot.pages) for (const binding of page.documentationBindings) validateDocumentationBinding(binding, `Page ${page.id}`);
+  for (const journey of snapshot.featureJourneys) for (const step of journey.steps) validateKnowledgeRef(step.target, `Journey ${journey.id} step ${step.id}`);
+  if (options.documentation) {
+    const profileIds = new Set(options.documentation.runtimeProfiles.map((profile) => profile.id));
+    for (const environment of snapshot.labEnvironments) {
+      for (const profileId of environment.runtimeProfileIds) {
+        if (!profileIds.has(profileId)) errors.push(`Lab environment ${environment.id} references missing runtime profile ${profileId}.`);
+      }
+    }
+  }
   const moduleIds = new Set(snapshot.modules.map((module) => module.id));
   const pageIds = new Set(snapshot.pages.map((page) => page.id));
   const moduleRoute = snapshot.tracks.flatMap((track) => track.moduleIds);
@@ -149,6 +196,9 @@ export async function validateSnapshot(
       errors.push(`Ready page ${page.id} contains unvalidated evidence.`);
     }
     for (const interaction of page.interactions) {
+      if (["component", "http", "database", "function"].includes(interaction.type)) {
+        validateKnowledgeRef((interaction as Extract<typeof interaction, { type: "component" | "http" | "database" | "function" }>).target, `Interaction in ${page.id}`);
+      }
       if (interaction.type === "command" && !interaction.recipe.expected) {
         errors.push(`Command recipe ${interaction.recipe.id} needs an expected observation.`);
       }
