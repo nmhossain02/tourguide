@@ -602,6 +602,28 @@ describe("process-local module labs", () => {
     await manager.shutdown();
   });
 
+  it("rejects undeclared preparation writes when resetting a lab", async () => {
+    const root = await repository();
+    const tour = await buildStarterTour(await inspectRepository(root));
+    const module = tour.modules[0]!;
+    const preparation = {
+      id: "reset-preparation", title: "Reset preparation", command: process.execPath,
+      args: ["-e", "require('node:fs').writeFileSync('prepared.txt','ready')"], cwd: ".", lifecycle: "oneshot" as const,
+      timeoutMs: 5_000, env: {}, inputs: [],
+      capabilities: { writes: ["prepared.txt"], network: "none" as const, secrets: [], containers: false, externalSystems: [] },
+    };
+    tour.labEnvironments = [{
+      id: "reset-preparation", moduleId: module.id, title: "Reset preparation", adapterIds: [], editablePaths: [],
+      dependencies: [], services: [], readiness: "ready", preparationRecipes: [preparation],
+    }];
+    const manager = new LabManager(root);
+    const { session } = await manager.create(tour, module.id);
+    preparation.capabilities.writes = [];
+
+    await expect(manager.reset(session.id)).rejects.toThrow("Lab reset preparation wrote outside its declaration: prepared.txt");
+    await manager.shutdown();
+  });
+
   it("waits for ports, selects the API service, and resets service state", async () => {
     const root = await repository();
     const tour = await buildStarterTour(await inspectRepository(root));

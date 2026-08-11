@@ -433,6 +433,13 @@ function evaluateCheck(check: VerificationCheck, result: RunResult): Verificatio
   return { type: check.type, status: "inconclusive", expected: "A matching interactive adapter result", observed: "This command recipe did not produce the required HTTP or database observation." };
 }
 
+function assertPreparationSucceeded(result: RunResult, recipe: RunRecipe, phase: "Lab preparation" | "Lab reset preparation"): void {
+  if (result.undeclaredWrites.length) {
+    throw new Error(`${phase} wrote outside its declaration: ${result.undeclaredWrites.join(", ")}.`);
+  }
+  if (result.exitCode !== 0) throw new Error(`${phase} failed: ${recipe.title}\n${result.stderr || result.stdout}`);
+}
+
 async function availablePort(): Promise<number> {
   const { createServer } = await import("node:net");
   return new Promise((resolvePort, reject) => {
@@ -593,10 +600,7 @@ export class LabManager {
       for (const adapter of adapters) await adapter.prepare?.(context);
       for (const recipe of environment.preparationRecipes) {
         const result = await runRecipeInWorkspace(workspace, recipe, trusted);
-        if (result.undeclaredWrites.length) {
-          throw new Error(`Lab preparation wrote outside its declaration: ${result.undeclaredWrites.join(", ")}.`);
-        }
-        if (result.exitCode !== 0) throw new Error(`Lab preparation failed: ${recipe.title}\n${result.stderr || result.stdout}`);
+        assertPreparationSucceeded(result, recipe, "Lab preparation");
       }
       for (const service of environment.services) await this.startService(internal, service);
       session.status = "ready";
@@ -725,7 +729,7 @@ export class LabManager {
     await materializeRuntimeProviders(internal.session.workspace, internal.environment.runtimeProviders);
     for (const recipe of internal.environment.preparationRecipes) {
       const result = await runRecipeInWorkspace(internal.session.workspace, recipe, false);
-      if (result.exitCode !== 0) throw new Error(`Lab reset failed: ${recipe.title}`);
+      assertPreparationSucceeded(result, recipe, "Lab reset preparation");
     }
     for (const service of internal.environment.services) await this.startService(internal, service);
     internal.session.status = "ready";
